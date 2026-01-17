@@ -1,0 +1,27 @@
+[
+  {
+    "id": "1f3bd101-c8c0-4fda-b525-d1ada11656dc",
+    "text": "atom 1: a demo of json-render integration, following quickstart",
+    "createdAt": "2026-01-17T23:12:23.264Z"
+  },
+  {
+    "id": "ee2ff2b2-9500-4226-a7f8-78162d5d398d",
+    "text": "atom 2: basic ai sdk chat interface to update a basic root context.md + ask follow up q",
+    "createdAt": "2026-01-17T23:12:32.838Z"
+  },
+  {
+    "id": "5960edb9-9cf0-41db-bf6e-e7de9540f613",
+    "text": "combine 1 and 2: chat interface on the left, show rendered ui on the right",
+    "createdAt": "2026-01-17T23:14:27.887Z"
+  },
+  {
+    "id": "e684981e-f168-4793-981c-92f897d9cd32",
+    "text": "adapt atom 1: can we do json render, where it renders \"ambiguous buttons\" as bringing up a modal to further add context.",
+    "createdAt": "2026-01-17T23:17:44.830Z"
+  },
+  {
+    "id": "7323e001-409e-4283-9ec3-0328f5241c11",
+    "text": "adapt atom 1: can we take outputs of json render, store them into page.tsx?",
+    "createdAt": "2026-01-17T23:18:22.847Z"
+  }
+]
