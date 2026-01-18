@@ -6,19 +6,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { readContext } from "./actions";
+import { readElementContext } from "../with-spec-chat/spec-actions";
 
-export default function RachelV1Page() {
+// Page name for context storage - uses outputs/ai-sdk-chat/components/...
+const PAGE_NAME = "ai-sdk-chat";
+const ELEMENT_KEY = "chat-context";
+
+export default function AiSdkChatPage() {
   const [input, setInput] = useState("");
   const [contextContent, setContextContent] = useState("");
-  const { messages, sendMessage, status } = useChat();
+  const { messages, sendMessage, status } = useChat({
+    body: {
+      pageName: PAGE_NAME,
+      elementKey: ELEMENT_KEY,
+    },
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isLoading = status === "streaming" || status === "submitted";
 
   const fetchContext = useCallback(async () => {
-    const content = await readContext();
+    const content = await readElementContext(PAGE_NAME, ELEMENT_KEY);
     setContextContent(content);
   }, []);
 

@@ -45,7 +45,7 @@ const tree: UITree = {
         "props": {
           "label": "Get Started",
           "variant": "primary",
-          "linkTo": "/testaa"
+          "linkTo": "/link"
         }
       },
       "heart-icon": {

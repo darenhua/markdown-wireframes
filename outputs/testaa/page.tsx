@@ -38,7 +38,8 @@ const tree: UITree = {
           "variant": "default",
           "size": "lg",
           "color": "purple",
-          "align": "center"
+          "align": "center",
+          "linkTo": "/test"
         }
       },
       "start-btn": {

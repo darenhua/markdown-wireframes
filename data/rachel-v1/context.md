@@ -1,17 +1,13 @@
 # Project Context
 
-## Goal
-- User is preparing for their first interview for an **Associate Product Manager (APM)** role at **AlphaSights**.
-- User has scheduled a call with a **current Product Manager at AlphaSights** to ask questions about the role/scope/projects.
+## Requirements
+- User is editing/creating a spec for an element named "growth-metric" of type "Metric".
 
-## Requests
-- Provide a **comprehensive preparation guide** for the APM interview.
-- Provide **questions to ask** during the informational chat with the current PM to help prepare for the actual interview.
+## Preferences
+- None captured yet.
 
-## Sources/Inputs
-- AlphaSights website: https://www.alphasights.com/
-- Role description mentioned but not yet provided (user said “below role description”).
+## Decisions
+- None captured yet.
 
-## Open Questions
-- User has not pasted the role description yet.
-- Interview format/stages, user background, and timeline not provided.
+## Notes
+- Need to start a spec conversation by asking about the first missing field in the context file.

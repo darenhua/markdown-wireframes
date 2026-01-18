@@ -1,0 +1,14 @@
+{
+  "elements": {
+    "growth-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T14:34:57.711Z",
+      "contextPath": "components/comp-8aa70b67a2b3/context.md"
+    },
+    "growth-metric": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T14:38:09.506Z",
+      "contextPath": "components/comp-052f82c59e78/context.md"
+    }
+  }
+}

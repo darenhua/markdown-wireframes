@@ -1,0 +1,19 @@
+{
+  "elements": {
+    "Title": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T15:02:58.311Z",
+      "contextPath": "components/comp-927159569e0f/context.md"
+    },
+    "title-text": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T15:03:13.016Z",
+      "contextPath": "components/comp-2190cd98b5df/context.md"
+    },
+    "secondary-btn": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T15:37:51.226Z",
+      "contextPath": "components/comp-5e1b786e7ed2/context.md"
+    }
+  }
+}

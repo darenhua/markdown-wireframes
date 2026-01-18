@@ -1,5 +1,5 @@
 {
-  "root": "metrics-dashboard",
+  "root": "main-stack",
   "elements": {
     "metrics-dashboard": {
       "key": "metrics-dashboard",
@@ -43,6 +43,99 @@
         "value": "7%",
         "change": "2%",
         "trend": "up"
+      }
+    },
+    "main-stack": {
+      "key": "main-stack",
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "lg"
+      },
+      "children": [
+        "heading",
+        "metrics-grid"
+      ]
+    },
+    "heading": {
+      "key": "heading",
+      "type": "Heading",
+      "props": {
+        "text": "Key Metrics",
+        "level": "1"
+      }
+    },
+    "metrics-grid": {
+      "key": "metrics-grid",
+      "type": "Grid",
+      "props": {
+        "columns": 3,
+        "gap": "md"
+      },
+      "children": [
+        "metric-card-1",
+        "metric-card-2",
+        "metric-card-3"
+      ]
+    },
+    "metric-card-1": {
+      "key": "metric-card-1",
+      "type": "Card",
+      "props": {
+        "title": "Revenue"
+      },
+      "children": [
+        "metric-1"
+      ]
+    },
+    "metric-1": {
+      "key": "metric-1",
+      "type": "Metric",
+      "props": {
+        "label": "Total Revenue",
+        "value": "$125,430",
+        "change": "+12.5%",
+        "trend": "up"
+      }
+    },
+    "metric-card-2": {
+      "key": "metric-card-2",
+      "type": "Card",
+      "props": {
+        "title": "Users"
+      },
+      "children": [
+        "metric-2"
+      ]
+    },
+    "metric-2": {
+      "key": "metric-2",
+      "type": "Metric",
+      "props": {
+        "label": "Active Users",
+        "value": "8,942",
+        "change": "+5.2%",
+        "trend": "up"
+      }
+    },
+    "metric-card-3": {
+      "key": "metric-card-3",
+      "type": "Card",
+      "props": {
+        "title": "Growth"
+      },
+      "children": [
+        "metric-3"
+      ]
+    },
+    "metric-3": {
+      "key": "metric-3",
+      "type": "Metric",
+      "props": {
+        "label": "Monthly Growth",
+        "value": "23.8%",
+        "change": "-2.1%",
+        "trend": "down"
       }
     }
   }

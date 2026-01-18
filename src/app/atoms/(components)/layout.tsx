@@ -7,7 +7,7 @@ export default function AtomsLayout({
 }) {
   return (
     <div>
-      <div className="border-b p-4">
+      {/* <div className="border-b p-4">
         <Link
           className="inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
           href="/atoms"
@@ -15,7 +15,7 @@ export default function AtomsLayout({
           <span>&larr;</span>
           <span>Back to Atoms</span>
         </Link>
-      </div>
+      </div> */}
       {children}
     </div>
   );

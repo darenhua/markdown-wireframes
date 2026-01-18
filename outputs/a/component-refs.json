@@ -1,0 +1,39 @@
+{
+  "components": {
+    "comp-927159569e0f": {
+      "id": "comp-927159569e0f",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "flex flex-row gap-2 items-center",
+        "textContent": "Title"
+      },
+      "contextPath": "components/comp-927159569e0f/context.md",
+      "createdAt": "2026-01-18T15:02:58.305Z",
+      "lastUpdated": "2026-01-18T15:02:58.305Z"
+    },
+    "comp-2190cd98b5df": {
+      "id": "comp-2190cd98b5df",
+      "selectors": {
+        "tagName": "H2",
+        "className": "scroll-m-20 text-3xl font-semibold tracking-tight",
+        "textContent": "Title",
+        "elementKey": "title-text"
+      },
+      "contextPath": "components/comp-2190cd98b5df/context.md",
+      "createdAt": "2026-01-18T15:03:13.013Z",
+      "lastUpdated": "2026-01-18T15:03:13.013Z"
+    },
+    "comp-5e1b786e7ed2": {
+      "id": "comp-5e1b786e7ed2",
+      "selectors": {
+        "tagName": "BUTTON",
+        "className": "focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-md border bg-clip-padding font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none group/button select-none border-border dark:bg-input/30 hover:bg-input/50 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground h-7 gap-1 px-2 text-xs/relaxed has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        "textContent": "Cancel",
+        "elementKey": "secondary-btn"
+      },
+      "contextPath": "components/comp-5e1b786e7ed2/context.md",
+      "createdAt": "2026-01-18T15:37:51.222Z",
+      "lastUpdated": "2026-01-18T15:37:51.222Z"
+    }
+  }
+}

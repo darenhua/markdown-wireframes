@@ -1,0 +1,28 @@
+{
+  "components": {
+    "comp-8aa70b67a2b3": {
+      "id": "comp-8aa70b67a2b3",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "ring-foreground/10 bg-card text-card-foreground gap-4 overflow-hidden rounded-lg py-4 text-xs/relaxed ring-1 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg group/card flex flex-col",
+        "textContent": "GrowthMonth-over-Month23.5%↑ +5.1%",
+        "elementKey": "growth-card"
+      },
+      "contextPath": "components/comp-8aa70b67a2b3/context.md",
+      "createdAt": "2026-01-18T14:34:57.651Z",
+      "lastUpdated": "2026-01-18T14:34:57.651Z"
+    },
+    "comp-052f82c59e78": {
+      "id": "comp-052f82c59e78",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "px-4 group-data-[size=sm]/card:px-3",
+        "textContent": "Month-over-Month23.5%↑ +5.1%",
+        "elementKey": "growth-metric"
+      },
+      "contextPath": "components/comp-052f82c59e78/context.md",
+      "createdAt": "2026-01-18T14:38:09.503Z",
+      "lastUpdated": "2026-01-18T14:38:09.503Z"
+    }
+  }
+}

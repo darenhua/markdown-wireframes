@@ -1,22 +1,30 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { z } from "zod";
-import { writeContext } from "@/app/atoms/(components)/(starter)/rachel-v1/actions";
+import {
+  writeElementContext,
+  createInitialContext,
+  type SelectorInfo,
+} from "@/app/atoms/(components)/(starter)/with-spec-chat/spec-actions";
 
 const SYSTEM_PROMPT = `You are a helpful assistant that extracts and tracks user requirements from conversations.
 
-IMPORTANT: Always respond conversationally to the user. When you use the write_context tool, you must ALSO provide a helpful response message - don't just silently update the context.
+CRITICAL RULES:
+1. You MUST call write_context after EVERY user message - no exceptions
+2. You MUST also provide a conversational text response after calling the tool
+3. Never skip the tool call, even if the user's message seems trivial
+
+WORKFLOW FOR EVERY MESSAGE:
+1. Read the user's message
+2. IMMEDIATELY call write_context to update the context file with any new information
+3. THEN provide your conversational response
 
 As you chat with the user, identify and extract:
 - User requirements and specifications
 - Preferences and constraints
 - Key decisions made
 - Important context about their project or goals
-
-When you identify important requirements or context, use the write_context tool to update the context file, AND continue the conversation naturally. For example:
-1. User shares a requirement
-2. You call write_context to save it
-3. You ALSO respond with acknowledgment, follow-up questions, or helpful suggestions
+- Even casual mentions or preferences
 
 The context file should be written in Markdown format with clear sections like:
 
@@ -35,21 +43,51 @@ The context file should be written in Markdown format with clear sections like:
 ## Notes
 - Any other important context
 
-Update the context file incrementally as new information emerges. Always include all previously captured context when updating - don't overwrite, but append and organize.
+## Conversation Summary
+- Brief notes from each exchange
 
-Be conversational, helpful, and engaging. Ask clarifying questions. Offer suggestions. The context extraction happens in the background - your primary job is still to be a great conversational assistant.`;
+Update the context file incrementally as new information emerges. Always include all previously captured context when updating - this overwrites the entire file, so include everything.
+
+Be conversational, helpful, and engaging. Ask clarifying questions. Offer suggestions.
+
+REMEMBER: Call write_context on EVERY message, then respond with text.`;
 
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const {
+    messages,
+    pageName,
+    elementKey,
+    selectors,
+  }: {
+    messages: UIMessage[];
+    pageName?: string;
+    elementKey?: string;
+    selectors?: SelectorInfo;
+  } = await req.json();
+
+  // Build selector info
+  const selectorInfo: SelectorInfo = {
+    elementKey: elementKey || "chat-context",
+    ...selectors,
+  };
+
+  // Use default page name if not provided
+  const effectivePageName = pageName || "default";
+  const effectiveElementKey = elementKey || "chat-context";
+
+  // Create initial context file if pageName is provided
+  if (pageName && messages.length <= 1) {
+    await createInitialContext(effectivePageName, effectiveElementKey, selectorInfo);
+  }
 
   const result = streamText({
-    model: openai("gpt-5.2"),
+    model: openai("gpt-4o"),
     system: SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
     tools: {
       write_context: {
         description:
-          "Write or update the context.md file with extracted requirements, preferences, and decisions from the conversation. Always include all previously captured context - this overwrites the entire file.",
+          "Write or update the context.md file. You MUST call this after every user message. Include all previously captured context - this overwrites the entire file.",
         inputSchema: z.object({
           content: z
             .string()
@@ -58,9 +96,14 @@ export async function POST(req: Request) {
             ),
         }),
         execute: async ({ content }: { content: string }) => {
-          const result = await writeContext(content);
+          const result = await writeElementContext(
+            effectivePageName,
+            effectiveElementKey,
+            content,
+            selectorInfo
+          );
           return result.success
-            ? "Context file updated successfully."
+            ? `Context file updated successfully. Component ID: ${result.componentId}`
             : "Failed to update context file.";
         },
       },

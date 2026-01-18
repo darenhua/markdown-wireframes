@@ -1,0 +1,266 @@
+{
+  "root": "title-with-heart",
+  "elements": {
+    "title-with-heart": {
+      "key": "title-with-heart",
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center"
+      },
+      "children": [
+        "heart-icon",
+        "title-text"
+      ]
+    },
+    "heart-icon": {
+      "key": "heart-icon",
+      "type": "Icon",
+      "props": {
+        "name": "heart",
+        "size": "md"
+      }
+    },
+    "title-text": {
+      "key": "title-text",
+      "type": "Heading",
+      "props": {
+        "text": "Title",
+        "level": "2",
+        "linkTo": "/DEMO"
+      }
+    },
+    "dashboard-container": {
+      "key": "dashboard-container",
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "lg"
+      },
+      "children": [
+        "dashboard-heading",
+        "metrics-grid",
+        "chart-card"
+      ]
+    },
+    "dashboard-heading": {
+      "key": "dashboard-heading",
+      "type": "Heading",
+      "props": {
+        "text": "Dashboard Overview",
+        "level": "1"
+      }
+    },
+    "metrics-grid": {
+      "key": "metrics-grid",
+      "type": "Grid",
+      "props": {
+        "columns": 3,
+        "gap": "md"
+      },
+      "children": [
+        "metric-card-1",
+        "metric-card-2",
+        "metric-card-3"
+      ]
+    },
+    "metric-card-1": {
+      "key": "metric-card-1",
+      "type": "Card",
+      "props": {},
+      "children": [
+        "metric-1"
+      ]
+    },
+    "metric-1": {
+      "key": "metric-1",
+      "type": "Metric",
+      "props": {
+        "label": "Total Revenue",
+        "value": "$45,231",
+        "change": "+12.5%",
+        "trend": "up"
+      }
+    },
+    "metric-card-2": {
+      "key": "metric-card-2",
+      "type": "Card",
+      "props": {},
+      "children": [
+        "metric-2"
+      ]
+    },
+    "metric-2": {
+      "key": "metric-2",
+      "type": "Metric",
+      "props": {
+        "label": "Active Users",
+        "value": "2,847",
+        "change": "+8.2%",
+        "trend": "up"
+      }
+    },
+    "metric-card-3": {
+      "key": "metric-card-3",
+      "type": "Card",
+      "props": {},
+      "children": [
+        "metric-3"
+      ]
+    },
+    "metric-3": {
+      "key": "metric-3",
+      "type": "Metric",
+      "props": {
+        "label": "Conversion Rate",
+        "value": "3.24%",
+        "change": "-2.1%",
+        "trend": "down"
+      }
+    },
+    "chart-card": {
+      "key": "chart-card",
+      "type": "Card",
+      "props": {
+        "title": "Performance Chart",
+        "description": "Monthly trend data"
+      },
+      "children": [
+        "chart-placeholder"
+      ]
+    },
+    "chart-placeholder": {
+      "key": "chart-placeholder",
+      "type": "Box",
+      "props": {
+        "padding": "lg",
+        "align": "center"
+      },
+      "children": [
+        "chart-text"
+      ]
+    },
+    "chart-text": {
+      "key": "chart-text",
+      "type": "Text",
+      "props": {
+        "text": "Chart visualization goes here",
+        "variant": "muted"
+      }
+    },
+    "secondary-btn": {
+      "key": "secondary-btn",
+      "type": "Button",
+      "props": {
+        "label": "Cancel",
+        "variant": "outline",
+        "size": "default"
+      }
+    },
+    "button-group": {
+      "key": "button-group",
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm"
+      },
+      "children": [
+        "btn-primary",
+        "btn-secondary",
+        "btn-destructive",
+        "btn-outline",
+        "btn-ghost",
+        "btn-link"
+      ]
+    },
+    "add-btn": {
+      "key": "add-btn",
+      "type": "Button",
+      "props": {
+        "label": "Add",
+        "variant": "default"
+      }
+    },
+    "more-btn": {
+      "key": "more-btn",
+      "type": "Button",
+      "props": {
+        "label": "More",
+        "variant": "secondary"
+      }
+    },
+    "confirm-btn": {
+      "key": "confirm-btn",
+      "type": "Button",
+      "props": {
+        "label": "Confirm",
+        "variant": "default"
+      }
+    },
+    "save-btn": {
+      "key": "save-btn",
+      "type": "Button",
+      "props": {
+        "label": "Save",
+        "variant": "default"
+      }
+    },
+    "cancel-btn": {
+      "key": "cancel-btn",
+      "type": "Button",
+      "props": {
+        "label": "Cancel",
+        "variant": "outline"
+      }
+    },
+    "btn-primary": {
+      "key": "btn-primary",
+      "type": "Button",
+      "props": {
+        "label": "Primary",
+        "variant": "default"
+      }
+    },
+    "btn-secondary": {
+      "key": "btn-secondary",
+      "type": "Button",
+      "props": {
+        "label": "Secondary",
+        "variant": "secondary"
+      }
+    },
+    "btn-destructive": {
+      "key": "btn-destructive",
+      "type": "Button",
+      "props": {
+        "label": "Delete",
+        "variant": "destructive"
+      }
+    },
+    "btn-outline": {
+      "key": "btn-outline",
+      "type": "Button",
+      "props": {
+        "label": "Outline",
+        "variant": "outline"
+      }
+    },
+    "btn-ghost": {
+      "key": "btn-ghost",
+      "type": "Button",
+      "props": {
+        "label": "Ghost",
+        "variant": "ghost"
+      }
+    },
+    "btn-link": {
+      "key": "btn-link",
+      "type": "Button",
+      "props": {
+        "label": "Link",
+        "variant": "link"
+      }
+    }
+  }
+}

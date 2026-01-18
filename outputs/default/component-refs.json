@@ -1,0 +1,13 @@
+{
+  "components": {
+    "comp-f97e6a8832e7": {
+      "id": "comp-f97e6a8832e7",
+      "selectors": {
+        "elementKey": "chat-context"
+      },
+      "contextPath": "components/comp-f97e6a8832e7/context.md",
+      "createdAt": "2026-01-18T14:40:02.592Z",
+      "lastUpdated": "2026-01-18T15:37:52.855Z"
+    }
+  }
+}

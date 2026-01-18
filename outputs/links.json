@@ -1,6 +1,9 @@
 {
   "nodes": [
+    "DEMO",
     "a",
+    "chartpage",
+    "hipage",
     "link",
     "linkpage",
     "linktoanewnumberspage",
@@ -17,6 +20,18 @@
       "to": "testaa",
       "elementKey": "get-started-btn",
       "elementText": "Get Started"
+    },
+    {
+      "from": "testaa",
+      "to": "test",
+      "elementKey": "greeting-text",
+      "elementText": "Hello! Welcome to our app."
+    },
+    {
+      "from": "a",
+      "to": "DEMO",
+      "elementKey": "title-text",
+      "elementText": "Title"
     }
   ]
 }

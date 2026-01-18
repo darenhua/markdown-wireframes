@@ -1,0 +1,98 @@
+{
+  "root": "metrics-dashboard",
+  "elements": {
+    "metrics-dashboard": {
+      "key": "metrics-dashboard",
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "lg"
+      },
+      "children": [
+        "dashboard-heading",
+        "metrics-grid"
+      ]
+    },
+    "dashboard-heading": {
+      "key": "dashboard-heading",
+      "type": "Heading",
+      "props": {
+        "text": "Metrics Dashboard",
+        "level": "1"
+      }
+    },
+    "metrics-grid": {
+      "key": "metrics-grid",
+      "type": "Grid",
+      "props": {
+        "columns": 3,
+        "gap": "md"
+      },
+      "children": [
+        "revenue-card",
+        "users-card",
+        "growth-card"
+      ]
+    },
+    "revenue-card": {
+      "key": "revenue-card",
+      "type": "Card",
+      "props": {
+        "title": "Revenue"
+      },
+      "children": [
+        "revenue-metric"
+      ]
+    },
+    "revenue-metric": {
+      "key": "revenue-metric",
+      "type": "Metric",
+      "props": {
+        "label": "Total Revenue",
+        "value": "$124,580",
+        "change": "+12.5%",
+        "trend": "up"
+      }
+    },
+    "users-card": {
+      "key": "users-card",
+      "type": "Card",
+      "props": {
+        "title": "Users"
+      },
+      "children": [
+        "users-metric"
+      ]
+    },
+    "users-metric": {
+      "key": "users-metric",
+      "type": "Metric",
+      "props": {
+        "label": "Active Users",
+        "value": "8,240",
+        "change": "+8.2%",
+        "trend": "up"
+      }
+    },
+    "growth-card": {
+      "key": "growth-card",
+      "type": "Card",
+      "props": {
+        "title": "Growth"
+      },
+      "children": [
+        "growth-metric"
+      ]
+    },
+    "growth-metric": {
+      "key": "growth-metric",
+      "type": "Metric",
+      "props": {
+        "label": "Month-over-Month",
+        "value": "23.5%",
+        "change": "+5.1%",
+        "trend": "up"
+      }
+    }
+  }
+}
