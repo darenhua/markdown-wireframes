@@ -18,11 +18,19 @@ import {
   Sparkles,
   Crosshair,
   Send,
+  Plus,
+  X,
+  ChevronRight,
+  FileText,
+  Link2,
+  ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { Renderer, DataProvider, VisibilityProvider, ActionProvider } from "@json-render/react";
 import type { UITree } from "@json-render/core";
 import type {
@@ -33,7 +41,16 @@ import type {
 import { getOutputRouteConfigs } from "../router-with-box-model/action";
 import { registry } from "../followup-prompts/registry";
 import { useFollowUpStream } from "../followup-prompts/useFollowUpStream";
-import { loadTreeJson, saveTreeJson } from "./actions";
+import {
+  loadTreeJson,
+  saveTreeJson,
+  createNewPage,
+  addLinkToElement,
+  readOutputsFileSystem,
+  readLinksGraph,
+  type OutputFileNode,
+  type LinksGraph,
+} from "./actions";
 import { cn } from "@/lib/utils";
 
 // ============ EXTENDED TYPES ============
@@ -41,6 +58,7 @@ interface SelectedComponent {
   id: string;
   tagName: string;
   className: string;
+  textContent: string;
   rect: DOMRect;
 }
 
@@ -63,7 +81,8 @@ function useInspector() {
 
 // ============ PROVIDERS ============
 function InspectorProvider({ children }: { children: React.ReactNode }) {
-  const [isEnabled, setIsEnabled] = useState(false);
+  // Inspector is ON by default until user selects an element
+  const [isEnabled, setIsEnabled] = useState(true);
   const [hoveredElement, setHoveredElement] =
     useState<InspectedElement | null>(null);
   const [selectedComponent, setSelectedComponent] =
@@ -164,6 +183,7 @@ function AutoInspector({ children }: { children: React.ReactNode }) {
         id: target.id || "",
         tagName: target.tagName,
         className: target.className || "",
+        textContent: target.textContent?.trim() || "",
         rect,
       });
     };
@@ -216,6 +236,104 @@ function HighlightOverlay() {
   );
 }
 
+// ============ FILE TREE NODE COMPONENT ============
+interface FileTreeNodeProps {
+  node: OutputFileNode;
+  depth: number;
+  currentRoutePath: string;
+  expandedFolders: Set<string>;
+  onToggle: (path: string) => void;
+  onNavigate: (path: string) => void;
+}
+
+function FileTreeNode({
+  node,
+  depth,
+  currentRoutePath,
+  expandedFolders,
+  onToggle,
+  onNavigate,
+}: FileTreeNodeProps) {
+  const isExpanded = expandedFolders.has(node.path);
+  const isFolder = node.type === "folder";
+  const isCurrentPage = currentRoutePath === `/${node.path}`;
+
+  const getFileIcon = () => {
+    if (node.isPage) return <FileText className="h-3.5 w-3.5 text-blue-400" />;
+    if (node.isTree) return <FileText className="h-3.5 w-3.5 text-yellow-400" />;
+    if (node.isRegistry) return <FileText className="h-3.5 w-3.5 text-green-400" />;
+    return <FileText className="h-3.5 w-3.5 text-gray-400" />;
+  };
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "flex items-center gap-1 py-1 px-1 cursor-pointer rounded text-xs transition-colors",
+          "hover:bg-muted/50",
+          isCurrentPage && isFolder && "bg-primary/10 text-primary font-medium"
+        )}
+        style={{ paddingLeft: `${depth * 12 + 4}px` }}
+        onClick={() => {
+          if (isFolder) {
+            onToggle(node.path);
+            onNavigate(node.path);
+          }
+        }}
+      >
+        {isFolder && (
+          <ChevronRight
+            className={cn(
+              "h-3 w-3 text-muted-foreground transition-transform",
+              isExpanded && "rotate-90"
+            )}
+          />
+        )}
+        {!isFolder && <span className="w-3" />}
+
+        {isFolder ? (
+          <FolderOpen className={cn("h-3.5 w-3.5", isExpanded ? "text-yellow-500" : "text-yellow-600")} />
+        ) : (
+          getFileIcon()
+        )}
+
+        <span className="truncate">{node.name}</span>
+
+        {/* Link indicators */}
+        {isFolder && node.linksTo && node.linksTo.length > 0 && (
+          <span className="ml-auto flex items-center gap-0.5 text-[9px] text-blue-400">
+            <ArrowRight className="h-2.5 w-2.5" />
+            {node.linksTo.length}
+          </span>
+        )}
+        {isFolder && node.linkedFrom && node.linkedFrom.length > 0 && (
+          <span className="flex items-center gap-0.5 text-[9px] text-green-400">
+            <Link2 className="h-2.5 w-2.5" />
+            {node.linkedFrom.length}
+          </span>
+        )}
+      </div>
+
+      {/* Children */}
+      {isFolder && isExpanded && node.children && (
+        <div>
+          {node.children.map((child) => (
+            <FileTreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              currentRoutePath={currentRoutePath}
+              expandedFolders={expandedFolders}
+              onToggle={onToggle}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============ FLOATING PANEL TYPES ============
 type ActivePanel = "pointer" | "ai" | "notes" | "tools" | "files";
 
@@ -245,7 +363,8 @@ const FOLLOWUP_SUGGESTIONS = [
 
 // ============ MAIN PAGE COMPONENT ============
 function FloatingBarWithRouter() {
-  const [activePanel, setActivePanel] = useState<ActivePanel>("tools");
+  // Start with pointer panel - inspector is ON by default until element selected
+  const [activePanel, setActivePanel] = useState<ActivePanel>("pointer");
   const [routes, setRoutes] = useState<RouteConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [router, setRouter] = useState<ReturnType<
@@ -259,6 +378,17 @@ function FloatingBarWithRouter() {
   const [followUpPrompt, setFollowUpPrompt] = useState("");
   const [persistedTree, setPersistedTree] = useState<UITree | null>(null);
   const [loadedTreeJson, setLoadedTreeJson] = useState<UITree | null>(null);
+
+  // New page modal state
+  const [showNewPageModal, setShowNewPageModal] = useState(false);
+  const [newPageName, setNewPageName] = useState("");
+  const [isCreatingPage, setIsCreatingPage] = useState(false);
+
+  // File system state
+  const [fileTree, setFileTree] = useState<OutputFileNode[]>([]);
+  const [linksGraph, setLinksGraph] = useState<LinksGraph>({ nodes: [], edges: [] });
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
 
   // Ref to track current folder for saving on completion
   const currentFolderRef = useRef<string>("");
@@ -293,10 +423,20 @@ function FloatingBarWithRouter() {
   // Determine display tree (streaming tree takes precedence, then persisted, then loaded from file)
   const displayTree = streamingTree ?? persistedTree ?? loadedTreeJson;
 
-  // Hotkey 'c' to toggle inspector
+  // Hotkey 'c' to toggle inspector, Command+K to create new page
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
+      // Command+K to create new page (only when element is selected)
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (selectedComponent) {
+          // Open modal to create new page
+          setShowNewPageModal(true);
+        }
+        return;
+      }
+
+      // Don't trigger inspector toggle if user is typing in an input
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -310,7 +450,7 @@ function FloatingBarWithRouter() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggle]);
+  }, [toggle, selectedComponent]);
 
   // Fetch routes from outputs folder on mount
   useEffect(() => {
@@ -435,6 +575,164 @@ function FloatingBarWithRouter() {
     }
   };
 
+  // Load file system for the files panel
+  const loadFileSystem = useCallback(async () => {
+    setIsLoadingFiles(true);
+    try {
+      const [tree, graph] = await Promise.all([
+        readOutputsFileSystem(),
+        readLinksGraph(),
+      ]);
+      setFileTree(tree);
+      setLinksGraph(graph);
+    } catch (err) {
+      console.error("Failed to load file system:", err);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  }, []);
+
+  // Toggle folder expansion
+  const toggleFolder = useCallback((path: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  // Load file system on mount
+  useEffect(() => {
+    loadFileSystem();
+  }, [loadFileSystem]);
+
+  // Reload when files panel is selected
+  useEffect(() => {
+    if (activePanel === "files") {
+      loadFileSystem();
+    }
+  }, [activePanel, loadFileSystem]);
+
+  // Create new page handler - creates a new page and links the selected element to it
+  const handleCreateNewPage = useCallback(async (customName?: string) => {
+    setIsCreatingPage(true);
+    try {
+      const currentFolderName = currentFolderRef.current;
+
+      // First save current tree if we have one
+      const currentTree = persistedTree ?? loadedTreeJson;
+      if (currentTree && currentFolderName) {
+        await saveTreeJson(currentTree, currentFolderName);
+        console.log("Saved current tree before creating new page");
+      }
+
+      // Create the new page
+      const result = await createNewPage(undefined, customName);
+
+      if (result.success && result.folderName) {
+        console.log("Created new page:", result.folderName);
+
+        // If we have a selected component, link it to the new page
+        if (selectedComponent && currentFolderName) {
+          const linkResult = await addLinkToElement(
+            currentFolderName,
+            {
+              id: selectedComponent.id,
+              tagName: selectedComponent.tagName,
+              className: selectedComponent.className,
+              textContent: selectedComponent.textContent,
+            },
+            `/${result.folderName}`
+          );
+
+          if (linkResult.success) {
+            console.log("Added link to element:", linkResult.message);
+            // Update persisted tree with the linked version
+            if (linkResult.tree) {
+              setPersistedTree(linkResult.tree);
+            }
+          } else {
+            console.warn("Could not add link to element:", linkResult.message);
+          }
+        }
+
+        // Refresh routes to include new page
+        const configs = await getOutputRouteConfigs();
+        setRoutes(configs);
+
+        // Create new router with the new page as initial route
+        if (configs.length > 0) {
+          const routeObjects = configs.map((config) => {
+            const fName = config.path.replace(/^\//, "");
+            const PageComponent = createDynamicPage(fName);
+            return {
+              path: config.path,
+              element: <PageComponent />,
+            };
+          });
+
+          const defaultRoute = {
+            path: "/",
+            element: (() => {
+              const FirstPage = createDynamicPage(configs[0].path.replace(/^\//, ""));
+              return <FirstPage />;
+            })(),
+          };
+
+          const allRoutes =
+            configs[0].path === "/" ? routeObjects : [defaultRoute, ...routeObjects];
+
+          // Create router starting at the new page
+          const newRouter = createMemoryRouter(allRoutes, {
+            initialEntries: [`/${result.folderName}`],
+            initialIndex: 0,
+          });
+
+          setRouter(newRouter);
+        }
+
+        // Update current folder ref to the new page
+        currentFolderRef.current = result.folderName;
+
+        // Clear existing tree state so new page's tree.json gets loaded
+        setPersistedTree(null);
+        setLoadedTreeJson(null);
+        clear(); // Clear any streaming state
+
+        // Switch to tools/hammer panel to generate content
+        setActivePanel("tools");
+
+        // Clear selected component since we've linked it
+        selectComponent(null);
+
+        // Reload file system
+        await loadFileSystem();
+
+        // Load the new page's tree.json (will be the default placeholder)
+        try {
+          const newTree = await loadTreeJson(result.folderName);
+          setLoadedTreeJson(newTree);
+        } catch {
+          // New page will have default tree, that's fine
+        }
+
+        // Close modal
+        setShowNewPageModal(false);
+        setNewPageName("");
+      } else {
+        console.error("Failed to create new page:", result.message);
+      }
+    } catch (err) {
+      console.error("Error creating new page:", err);
+    } finally {
+      setIsCreatingPage(false);
+    }
+  }, [persistedTree, loadedTreeJson, loadFileSystem, selectedComponent, selectComponent, clear]);
+
   // Determine if we're in follow-up mode (have a tree to modify)
   const isFollowUpMode = displayTree !== null;
 
@@ -552,6 +850,13 @@ function FloatingBarWithRouter() {
                 {Math.round(selectedComponent.rect.height)}px
               </div>
             </div>
+            {/* Cmd+K hint */}
+            <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+              <kbd className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-[10px]">
+                ⌘K
+              </kbd>
+              <span>Create new page from this element</span>
+            </div>
           </div>
         )}
 
@@ -624,6 +929,110 @@ function FloatingBarWithRouter() {
               </div>
             )}
           </div>
+        ) : activePanel === "files" ? (
+          <div className="space-y-3">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm">Pages</h3>
+              <button
+                onClick={loadFileSystem}
+                disabled={isLoadingFiles}
+                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-50"
+                title="Refresh"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isLoadingFiles && "animate-spin")} />
+              </button>
+            </div>
+
+            {/* File Tree */}
+            <ScrollArea className="h-[200px] -mx-2 px-2">
+              {fileTree.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-xs text-muted-foreground">No pages yet</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                    Create your first page below
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  {fileTree.map((node) => (
+                    <FileTreeNode
+                      key={node.path}
+                      node={node}
+                      depth={0}
+                      currentRoutePath={currentRoutePath}
+                      expandedFolders={expandedFolders}
+                      onToggle={toggleFolder}
+                      onNavigate={(path) => {
+                        if (router) {
+                          router.navigate(`/${path}`);
+
+                          // Check if this folder has a tree.json
+                          const targetNode = fileTree.find((n) => n.path === path);
+                          const hasTreeJson = targetNode?.children?.some((child) => child.isTree);
+
+                          // If no tree.json exists, switch to hammer mode
+                          if (!hasTreeJson) {
+                            setActivePanel("tools");
+                          }
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Links Graph Summary */}
+            {linksGraph.edges.length > 0 && (
+              <div className="pt-2 border-t border-border/50">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                  Page Links
+                </p>
+                <div className="space-y-1 text-[10px]">
+                  {linksGraph.edges.slice(0, 3).map((edge, i) => (
+                    <div key={i} className="flex items-center gap-1 text-muted-foreground">
+                      <span className="truncate">{edge.from}</span>
+                      <ArrowRight className="h-2.5 w-2.5 shrink-0" />
+                      <span className="truncate">{edge.to}</span>
+                    </div>
+                  ))}
+                  {linksGraph.edges.length > 3 && (
+                    <p className="text-muted-foreground/60">
+                      +{linksGraph.edges.length - 3} more
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* New Page Button */}
+            <div className="pt-2 border-t border-border/50">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowNewPageModal(true)}
+                className="w-full gap-1"
+              >
+                <Plus className="h-3 w-3" />
+                New Page
+              </Button>
+            </div>
+
+            {/* Legend */}
+            <div className="pt-2 border-t border-border/50">
+              <div className="flex flex-wrap gap-2 text-[9px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <ArrowRight className="h-2.5 w-2.5 text-blue-400" />
+                  links to
+                </span>
+                <span className="flex items-center gap-1">
+                  <Link2 className="h-2.5 w-2.5 text-green-400" />
+                  linked from
+                </span>
+              </div>
+            </div>
+          </div>
         ) : activePanel !== "pointer" && !selectedComponent ? (
           <>
             <h3 className="font-semibold">{panelNames[activePanel]}</h3>
@@ -684,6 +1093,92 @@ function FloatingBarWithRouter() {
           <FolderOpen className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* New Page Modal */}
+      {showNewPageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowNewPageModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Create New Page</h2>
+              <button
+                onClick={() => setShowNewPageModal(false)}
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {selectedComponent && (
+              <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm font-medium text-blue-800 mb-1">
+                  Linking from selected element:
+                </p>
+                <p className="font-mono text-xs text-blue-700">
+                  {selectedComponent.tagName.toLowerCase()}
+                  {selectedComponent.textContent && (
+                    <span className="text-blue-600">
+                      {" → "}&quot;{selectedComponent.textContent.slice(0, 30)}
+                      {selectedComponent.textContent.length > 30 ? "..." : ""}&quot;
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateNewPage(newPageName || undefined);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">
+                  Page Name (optional)
+                </label>
+                <Input
+                  type="text"
+                  value={newPageName}
+                  onChange={(e) => setNewPageName(e.target.value)}
+                  placeholder="e.g., settings, dashboard"
+                  className="w-full"
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Leave empty for auto-generated name (page-1, page-2, etc.)
+                </p>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowNewPageModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isCreatingPage}>
+                  {isCreatingPage ? (
+                    <>
+                      <span className="mr-2 size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-1 h-4 w-4" />
+                      Create Page
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

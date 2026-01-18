@@ -1,4 +1,5 @@
 import type { ComponentRegistry } from "@json-render/react";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 // shadcn/ui components
@@ -54,6 +55,28 @@ import {
   Smile,
   ThumbsUp,
 } from "lucide-react";
+
+// Wrapper for elements with links - adds visual highlight
+function LinkHighlight({
+  children,
+  linkTo,
+}: {
+  children: React.ReactNode;
+  linkTo?: string;
+}) {
+  if (!linkTo) return <>{children}</>;
+  return (
+    <div className="relative inline-block">
+      <div className="absolute inset-0 rounded-lg ring-2 ring-blue-500 ring-offset-2 ring-offset-background pointer-events-none z-10" />
+      <div className="absolute -top-2 -right-2 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white shadow-sm">
+        <ArrowRight className="h-3 w-3" />
+      </div>
+      <Link to={linkTo} className="block no-underline">
+        {children}
+      </Link>
+    </div>
+  );
+}
 
 /**
  * Registry maps catalog component names to actual React render functions.
@@ -428,11 +451,22 @@ export const registry: ComponentRegistry = {
   Button: ({ element }) => {
     const variant = element.props.variant ?? "default";
     const size = element.props.size ?? "default";
-    return (
+    const btn = (
       <Button variant={variant} size={size}>
         {element.props.label}
       </Button>
     );
+
+    // If has linkTo, wrap with highlight and Link
+    if (element.props.linkTo) {
+      return (
+        <LinkHighlight linkTo={element.props.linkTo as string}>
+          {btn}
+        </LinkHighlight>
+      );
+    }
+
+    return btn;
   },
 
   Input: ({ element }) => (

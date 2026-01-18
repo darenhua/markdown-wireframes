@@ -17,7 +17,12 @@
         "info-section",
         "contact-section",
         "features-section",
-        "testimonials-section"
+        "testimonials-section",
+        "title-heart-icon-new",
+        "new-section",
+        "another-section",
+        "title-heart-icon-new-2",
+        "secondary-outline-btn"
       ]
     },
     "greeting-text": {
@@ -95,7 +100,8 @@
       "type": "Button",
       "props": {
         "label": "Contact Support",
-        "variant": "secondary"
+        "variant": "secondary",
+        "linkTo": "/testin"
       }
     },
     "features-section": {
@@ -113,7 +119,8 @@
       "key": "features-text",
       "type": "Text",
       "props": {
-        "text": "Explore the amazing features we offer."
+        "text": "Explore the amazing features we offer.",
+        "linkTo": "/linkpage"
       }
     },
     "testimonials-section": {
@@ -141,6 +148,68 @@
         "name": "heart",
         "size": "md",
         "color": "pink"
+      }
+    },
+    "title-heart-icon-new": {
+      "key": "title-heart-icon-new",
+      "type": "Icon",
+      "props": {
+        "name": "heart",
+        "size": "md",
+        "color": "pink"
+      }
+    },
+    "new-section": {
+      "key": "new-section",
+      "type": "Card",
+      "props": {
+        "title": "New Section",
+        "bg": "amber"
+      },
+      "children": [
+        "new-section-text"
+      ]
+    },
+    "new-section-text": {
+      "key": "new-section-text",
+      "type": "Text",
+      "props": {
+        "text": "Details about the new section."
+      }
+    },
+    "another-section": {
+      "key": "another-section",
+      "type": "Card",
+      "props": {
+        "title": "Another Section",
+        "bg": "pink"
+      },
+      "children": [
+        "another-section-text"
+      ]
+    },
+    "another-section-text": {
+      "key": "another-section-text",
+      "type": "Text",
+      "props": {
+        "text": "Content for another section."
+      }
+    },
+    "title-heart-icon-new-2": {
+      "key": "title-heart-icon-new-2",
+      "type": "Icon",
+      "props": {
+        "name": "heart",
+        "size": "md",
+        "color": "pink"
+      }
+    },
+    "secondary-outline-btn": {
+      "key": "secondary-outline-btn",
+      "type": "Button",
+      "props": {
+        "label": "Secondary Outline",
+        "variant": "outline"
       }
     }
   }

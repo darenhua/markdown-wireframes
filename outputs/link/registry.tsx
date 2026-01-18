@@ -1,51 +1,6 @@
-"use server";
-
-import { readFile, writeFile, mkdir, access } from "fs/promises";
-import path from "path";
-import type { UITree } from "@json-render/core";
-
-const OUTPUTS_ROOT = path.join(process.cwd(), "outputs");
-
-/**
- * Generates a page.tsx that uses @json-render/react with proper shadcn imports
- */
-function generatePageTSX(tree: UITree): string {
-  const treeJson = JSON.stringify(tree, null, 2)
-    .split("\n")
-    .map((line, i) => (i === 0 ? line : "  " + line))
-    .join("\n");
-
-  return `"use client";
-
-import { Renderer, DataProvider, VisibilityProvider, ActionProvider } from "@json-render/react";
-import type { UITree } from "@json-render/core";
-import { registry } from "./registry";
-
-const tree: UITree = ${treeJson};
-
-export default function GeneratedPage() {
-  return (
-    <div className="h-full w-full p-6">
-      <DataProvider>
-        <VisibilityProvider>
-          <ActionProvider>
-            <div className="space-y-4">
-              <Renderer tree={tree} registry={registry} />
-            </div>
-          </ActionProvider>
-        </VisibilityProvider>
-      </DataProvider>
-    </div>
-  );
-}
-`;
-}
-
-/**
- * Registry file content - maps json-render types to shadcn/ui components
- */
-const REGISTRY_CONTENT = `import type { ComponentRegistry } from "@json-render/react";
+import type { ComponentRegistry } from "@json-render/react";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 // shadcn/ui components
 import {
@@ -173,7 +128,7 @@ export const registry: ComponentRegistry = {
       "3": "scroll-m-20 text-2xl font-semibold tracking-tight",
       "4": "scroll-m-20 text-xl font-semibold tracking-tight",
     }[level];
-    const Tag = \`h\${level}\` as keyof JSX.IntrinsicElements;
+    const Tag = `h${level}` as keyof JSX.IntrinsicElements;
     return <Tag className={className}>{element.props.text}</Tag>;
   },
   Text: ({ element }) => {
@@ -243,7 +198,21 @@ export const registry: ComponentRegistry = {
   },
 
   // INTERACTIVE
-  Button: ({ element }) => <Button variant={element.props.variant ?? "default"} size={element.props.size ?? "default"}>{element.props.label}</Button>,
+  Button: ({ element }) => {
+    const btn = <Button variant={element.props.variant ?? "default"} size={element.props.size ?? "default"}>{element.props.label}</Button>;
+    // If linkTo is provided, wrap in a Link
+    if (element.props.linkTo) {
+      return <Link to={element.props.linkTo} className="no-underline">{btn}</Link>;
+    }
+    return btn;
+  },
+  LinkButton: ({ element, children }) => (
+    <Link to={element.props.to ?? "/"} className="no-underline">
+      <Button variant={element.props.variant ?? "default"} size={element.props.size ?? "default"}>
+        {element.props.label ?? children}
+      </Button>
+    </Link>
+  ),
   Input: ({ element }) => (
     <div className="grid w-full gap-1.5">
       {element.props.label && <Label>{element.props.label}</Label>}
@@ -258,8 +227,8 @@ export const registry: ComponentRegistry = {
   ),
   Checkbox: ({ element }) => (
     <div className="flex items-center space-x-2">
-      <Checkbox id={\`checkbox-\${element.key}\`} defaultChecked={element.props.checked ?? false} />
-      <Label htmlFor={\`checkbox-\${element.key}\`}>{element.props.label}</Label>
+      <Checkbox id={`checkbox-${element.key}`} defaultChecked={element.props.checked ?? false} />
+      <Label htmlFor={`checkbox-${element.key}`}>{element.props.label}</Label>
     </div>
   ),
 
@@ -292,75 +261,3 @@ export const registry: ComponentRegistry = {
     );
   },
 };
-`;
-
-/**
- * Loads tree.json for a given folder from outputs directory
- */
-export async function loadTreeJson(folderName: string): Promise<UITree | null> {
-  try {
-    // Sanitize folder name to prevent path traversal
-    const sanitizedFolder = folderName.replace(/[^a-zA-Z0-9-_]/g, "");
-    if (!sanitizedFolder) return null;
-
-    const treePath = path.join(OUTPUTS_ROOT, sanitizedFolder, "tree.json");
-
-    // Check if file exists
-    try {
-      await access(treePath);
-    } catch {
-      return null;
-    }
-
-    // Read and parse the tree.json file
-    const content = await readFile(treePath, "utf-8");
-    return JSON.parse(content) as UITree;
-  } catch (error) {
-    console.error("Error loading tree.json:", error);
-    return null;
-  }
-}
-
-/**
- * Saves tree.json, page.tsx, and registry.tsx for a given folder to outputs directory
- */
-export async function saveTreeJson(
-  tree: UITree,
-  folderName: string
-): Promise<{ success: boolean; message: string }> {
-  try {
-    // Sanitize folder name
-    const sanitizedFolder = folderName.replace(/[^a-zA-Z0-9-_]/g, "");
-    if (!sanitizedFolder) {
-      return { success: false, message: "Invalid folder name" };
-    }
-
-    const folderPath = path.join(OUTPUTS_ROOT, sanitizedFolder);
-
-    // Ensure folder exists
-    await mkdir(folderPath, { recursive: true });
-
-    // Write tree.json
-    const treePath = path.join(folderPath, "tree.json");
-    await writeFile(treePath, JSON.stringify(tree, null, 2), "utf-8");
-
-    // Write page.tsx with proper imports
-    const pagePath = path.join(folderPath, "page.tsx");
-    await writeFile(pagePath, generatePageTSX(tree), "utf-8");
-
-    // Write registry.tsx with shadcn component mappings
-    const registryPath = path.join(folderPath, "registry.tsx");
-    await writeFile(registryPath, REGISTRY_CONTENT, "utf-8");
-
-    return {
-      success: true,
-      message: `Saved to outputs/${sanitizedFolder}/`,
-    };
-  } catch (error) {
-    console.error("Error saving tree.json:", error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}

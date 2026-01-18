@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    "a",
+    "link",
+    "linkpage",
+    "linktoanewnumberspage",
+    "money",
+    "newpage",
+    "test",
+    "test-2",
+    "testaa",
+    "testin"
+  ],
+  "edges": [
+    {
+      "from": "link",
+      "to": "testaa",
+      "elementKey": "get-started-btn",
+      "elementText": "Get Started"
+    }
+  ]
+}

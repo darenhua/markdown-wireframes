@@ -1,0 +1,35 @@
+{
+  "root": "welcome-card",
+  "elements": {
+    "welcome-card": {
+      "key": "welcome-card",
+      "type": "Card",
+      "props": {
+        "title": "Welcome",
+        "description": "Start your journey with us",
+        "bg": "gradient-warm"
+      },
+      "children": [
+        "sparkles-icon",
+        "get-started-btn"
+      ]
+    },
+    "sparkles-icon": {
+      "key": "sparkles-icon",
+      "type": "Icon",
+      "props": {
+        "name": "sparkles",
+        "size": "lg",
+        "color": "pink"
+      }
+    },
+    "get-started-btn": {
+      "key": "get-started-btn",
+      "type": "Button",
+      "props": {
+        "label": "Get Started",
+        "variant": "primary"
+      }
+    }
+  }
+}
