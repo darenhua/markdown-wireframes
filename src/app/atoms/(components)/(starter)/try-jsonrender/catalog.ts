@@ -14,20 +14,6 @@ export const catalog = createCatalog({
       props: z.object({
         title: z.string().nullable(),
         description: z.string().nullable(),
-        variant: z
-          .enum(["default", "outline", "elevated", "ghost"])
-          .nullable(),
-        bg: z
-          .enum([
-            "default",
-            "muted",
-            "pink",
-            "purple",
-            "amber",
-            "gradient-warm",
-            "gradient-cool",
-          ])
-          .nullable(),
       }),
       hasChildren: true,
     },
@@ -48,20 +34,6 @@ export const catalog = createCatalog({
     },
     Box: {
       props: z.object({
-        bg: z
-          .enum([
-            "default",
-            "muted",
-            "primary",
-            "pink",
-            "purple",
-            "amber",
-            "green",
-            "gradient-warm",
-            "gradient-cool",
-            "gradient-sunset",
-          ])
-          .nullable(),
         padding: z.enum(["none", "sm", "md", "lg", "xl"]).nullable(),
         rounded: z.enum(["none", "sm", "md", "lg", "xl", "full"]).nullable(),
         border: z.boolean().nullable(),
@@ -84,20 +56,7 @@ export const catalog = createCatalog({
       props: z.object({
         text: z.string(),
         variant: z.enum(["default", "muted", "error", "success"]).nullable(),
-        size: z.enum(["sm", "base", "lg", "xl", "2xl"]).nullable(),
-        color: z
-          .enum([
-            "default",
-            "primary",
-            "pink",
-            "purple",
-            "amber",
-            "green",
-            "gradient",
-          ])
-          .nullable(),
-        weight: z.enum(["normal", "medium", "semibold", "bold"]).nullable(),
-        align: z.enum(["left", "center", "right"]).nullable(),
+        size: z.enum(["sm", "base", "lg"]).nullable(),
       }),
     },
     Label: {
@@ -114,9 +73,7 @@ export const catalog = createCatalog({
       props: z.object({
         name: z.enum([
           "heart",
-          "heart-filled",
           "star",
-          "star-filled",
           "sparkles",
           "gift",
           "party",
@@ -133,25 +90,10 @@ export const catalog = createCatalog({
           "info",
           "warning",
           "zap",
-          "sun",
-          "moon",
-          "cloud",
           "smile",
           "thumbs-up",
         ]),
-        size: z.enum(["sm", "md", "lg", "xl", "2xl"]).nullable(),
-        color: z
-          .enum([
-            "default",
-            "muted",
-            "primary",
-            "pink",
-            "red",
-            "purple",
-            "amber",
-            "green",
-          ])
-          .nullable(),
+        size: z.enum(["sm", "md", "lg", "xl"]).nullable(),
       }),
     },
     Metric: {
@@ -263,9 +205,6 @@ export const catalog = createCatalog({
       props: z.object({
         orientation: z.enum(["horizontal", "vertical"]).nullable(),
       }),
-    },
-    Divider: {
-      props: z.object({}),
     },
     Empty: {
       props: z.object({
