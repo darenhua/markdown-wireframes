@@ -10,17 +10,17 @@ import { cn } from "@/lib/utils";
 import { registry } from "./registry";
 
 const EXAMPLE_PROMPTS = [
-  "Create a welcome card with a greeting and get started button",
-  "Build a metrics dashboard with revenue, users, and growth stats",
-  "Design a contact form with name, email, and message fields",
-  "Create a pricing card with features list and subscribe button",
+  "Create a welcome card with sparkles icon, gradient background, and get started button",
+  "Build a metrics dashboard with revenue, users, and growth stats in a 3-column grid",
+  "Design a contact form with name, email, textarea for message, and checkboxes",
+  "Create a user profile card with avatar, tabs for bio/posts/settings",
 ];
 
 const FOLLOWUP_SUGGESTIONS = [
-  "Add a logout button",
-  "Change the color scheme to blue",
-  "Add another section below",
-  "Make the heading bigger",
+  "Add a heart icon next to the title",
+  "Change the card to a warm gradient background",
+  "Add a secondary button with outline variant",
+  "Convert this to use tabs for different sections",
 ];
 
 export default function TryJsonRenderPage() {
