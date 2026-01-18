@@ -1,0 +1,31 @@
+{
+  "root": "welcome-card",
+  "elements": {
+    "welcome-card": {
+      "key": "welcome-card",
+      "type": "Card",
+      "props": {
+        "title": "Welcome"
+      },
+      "children": [
+        "greeting-text",
+        "get-started-btn"
+      ]
+    },
+    "greeting-text": {
+      "key": "greeting-text",
+      "type": "Text",
+      "props": {
+        "text": "Hello! Welcome to our app."
+      }
+    },
+    "get-started-btn": {
+      "key": "get-started-btn",
+      "type": "Button",
+      "props": {
+        "label": "Get Started",
+        "variant": "primary"
+      }
+    }
+  }
+}
