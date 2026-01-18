@@ -19,6 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { readElementContext, type SelectorInfo } from "../spec-actions";
+import { readPageTsx } from "../actions";
 
 interface UITree {
   root: string;
@@ -146,11 +147,15 @@ export function NotebookPanel({
   onElementKeyChange,
 }: NotebookPanelProps) {
   const [contextContent, setContextContent] = useState(initialContext);
+  const [pageTsxContent, setPageTsxContent] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [selectedInternalKey, setSelectedInternalKey] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasAutoStarted = useRef(false);
   const prevElementKey = useRef<string | null>(null);
+  const contextLoadedRef = useRef(false);
+  // Force re-render when context loads
+  const [, forceUpdate] = useState({});
 
   // Use external elementKey if provided, otherwise use internal selection
   const elementKey = externalElementKey || selectedInternalKey;
@@ -189,12 +194,19 @@ export function NotebookPanel({
       }
     : undefined;
 
-  // Fetch context from server
+  // Fetch context and page.tsx from server
   const fetchContext = useCallback(async () => {
     if (!elementKey) return;
-    const content = await readElementContext(pageName, elementKey);
+    contextLoadedRef.current = false;
+    const [content, pageContent] = await Promise.all([
+      readElementContext(pageName, elementKey),
+      readPageTsx(pageName),
+    ]);
     setContextContent(content);
+    setPageTsxContent(pageContent);
+    contextLoadedRef.current = true;
     onContextUpdate(content);
+    forceUpdate({}); // Trigger re-render to check auto-start condition
   }, [pageName, elementKey, onContextUpdate]);
 
   // Agent stream hook
@@ -227,6 +239,7 @@ export function NotebookPanel({
       prevElementKey.current = elementKey;
       clear();
       hasAutoStarted.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync state when elementKey prop changes
       fetchContext();
     }
   }, [elementKey, clear, fetchContext]);
@@ -236,6 +249,7 @@ export function NotebookPanel({
     if (
       elementKey &&
       element &&
+      contextLoadedRef.current &&
       messages.length === 0 &&
       !hasAutoStarted.current &&
       !isStreaming
@@ -248,17 +262,44 @@ export function NotebookPanel({
         element,
       });
 
+      // Build preloaded context for the system prompt
+      const treeContext = tree ? JSON.stringify(tree, null, 2) : "Not available";
+      const pageContext = pageTsxContent || "Not available";
+      const specContext = contextContent || "No existing spec - this is a new component";
+
       const systemPrompt = `You are helping the user fill out a component specification for "${elementKey}" (type: ${element.type}).
-The spec file is located at: outputs/${pageName}/components/[component-id]/context.md
-First, read the current context.md file if it exists, then ask the user ONE question at a time to fill in missing sections.
-Keep responses brief and conversational. When the user answers, update the context.md file with their input.`;
+The spec file is located at: outputs/${pageName}/components/${elementKey}/context.md
+
+## PRELOADED CONTEXT (do NOT use tools to read these files - they are provided below):
+
+### Current Component Spec (context.md):
+\`\`\`markdown
+${specContext}
+\`\`\`
+
+### Component Tree (tree.json):
+\`\`\`json
+${treeContext}
+\`\`\`
+
+### Page Implementation (page.tsx):
+\`\`\`tsx
+${pageContext}
+\`\`\`
+
+## INSTRUCTIONS:
+- You already have access to all the context above - do NOT call Read tools to fetch tree.json, page.tsx, or context.md
+- Ask the user ONE question at a time to fill in missing sections of the spec
+- Keep responses brief and conversational
+- When the user answers, use the Write tool to update the context.md file with their input
+- Focus on: Overview, Purpose, Features, Interactions, and Edge Cases sections`;
 
       send(
         `Let's fill out the spec for the "${elementKey}" component. What would you like to know about it first?`,
         { pageName, elementKey, systemPrompt }
       );
     }
-  }, [elementKey, element, messages.length, isStreaming, send, pageName, tree]);
+  }, [elementKey, element, messages.length, isStreaming, send, pageName, tree, pageTsxContent, contextContent]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -272,31 +313,6 @@ Keep responses brief and conversational. When the user answers, update the conte
     if (!input.trim() || isStreaming) return;
     send(input, { pageName, elementKey: elementKey || undefined });
     setInput("");
-  };
-
-  // Quick action handlers
-  const handleQuickAction = (action: string) => {
-    if (isStreaming) return;
-
-    let prompt = "";
-    switch (action) {
-      case "read":
-        prompt = "Read the current context.md file and show me what's filled in.";
-        break;
-      case "overview":
-        prompt = "Let's focus on the Overview section. Ask me about it.";
-        break;
-      case "purpose":
-        prompt = "Let's fill out the Purpose section. What questions do you have?";
-        break;
-      case "features":
-        prompt = "Let's define the Features. What should this component do?";
-        break;
-    }
-
-    if (prompt) {
-      send(prompt, { pageName, elementKey: elementKey || undefined });
-    }
   };
 
   // No tree loaded
@@ -354,9 +370,6 @@ Keep responses brief and conversational. When the user answers, update the conte
             <button onClick={handleBack} className="p-0.5 hover:bg-muted rounded">
               <ChevronLeft className="h-3 w-3 text-muted-foreground" />
             </button>
-            <Badge variant="outline" className="text-[8px] px-1 py-0">
-              {element?.type}
-            </Badge>
             <span className="text-[10px] font-mono text-muted-foreground truncate">
               {elementKey}
             </span>
@@ -421,39 +434,6 @@ Keep responses brief and conversational. When the user answers, update the conte
               </div>
             </div>
           )}
-        </div>
-
-        {/* Quick actions */}
-        <div className="px-2 py-1 border-t flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] text-muted-foreground">Quick:</span>
-          <button
-            onClick={() => handleQuickAction("read")}
-            disabled={isStreaming}
-            className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            Read spec
-          </button>
-          <button
-            onClick={() => handleQuickAction("overview")}
-            disabled={isStreaming}
-            className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => handleQuickAction("purpose")}
-            disabled={isStreaming}
-            className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            Purpose
-          </button>
-          <button
-            onClick={() => handleQuickAction("features")}
-            disabled={isStreaming}
-            className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            Features
-          </button>
         </div>
 
         {/* Input */}

@@ -145,6 +145,28 @@
       "contextPath": "components/comp-7d473390d872/context.md",
       "createdAt": "2026-01-18T17:21:57.307Z",
       "lastUpdated": "2026-01-18T17:21:57.307Z"
+    },
+    "comp-3e12336f8916": {
+      "id": "comp-3e12336f8916",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "grid w-full gap-1.5",
+        "textContent": "Name"
+      },
+      "contextPath": "components/comp-3e12336f8916/context.md",
+      "createdAt": "2026-01-18T18:18:31.588Z",
+      "lastUpdated": "2026-01-18T18:18:31.588Z"
+    },
+    "comp-556a56bae919": {
+      "id": "comp-556a56bae919",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "px-4 group-data-[size=sm]/card:px-3",
+        "textContent": "NameEmailMessageSend MessageCancelFeedback FormNameEmailFeedbackSubmit FeedbackCancel"
+      },
+      "contextPath": "components/comp-556a56bae919/context.md",
+      "createdAt": "2026-01-18T18:24:38.962Z",
+      "lastUpdated": "2026-01-18T18:24:38.962Z"
     }
   }
 }

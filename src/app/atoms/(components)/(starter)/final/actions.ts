@@ -483,6 +483,29 @@ export async function addLinkToGraph(
 }
 
 /**
+ * Reads the page.tsx content for a given folder
+ */
+export async function readPageTsx(folderName: string): Promise<string | null> {
+  try {
+    const sanitizedFolder = folderName.replace(/[^a-zA-Z0-9-_]/g, "");
+    if (!sanitizedFolder) return null;
+
+    const pagePath = path.join(OUTPUTS_ROOT, sanitizedFolder, "page.tsx");
+
+    try {
+      await access(pagePath);
+    } catch {
+      return null;
+    }
+
+    return await readFile(pagePath, "utf-8");
+  } catch (error) {
+    console.error("Error reading page.tsx:", error);
+    return null;
+  }
+}
+
+/**
  * Reads the outputs directory structure with link information
  */
 export async function readOutputsFileSystem(): Promise<OutputFileNode[]> {

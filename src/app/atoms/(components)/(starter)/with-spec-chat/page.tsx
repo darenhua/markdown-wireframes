@@ -111,18 +111,6 @@ type InspectorContextType = {
   setHoveredElement: (element: InspectedElement | null) => void;
 };
 
-// Stub for getOutputRouteConfigs - reads from outputs folder
-async function getOutputRouteConfigs(): Promise<RouteConfig[]> {
-  try {
-    const res = await fetch("/api/outputs-routes");
-    if (res.ok) {
-      return res.json();
-    }
-  } catch {
-    // Fallback
-  }
-  return [];
-}
 import { registry } from "../try-jsonrender/registry";
 import { useFollowUpStream } from "./useFollowUpStream";
 import {
@@ -138,6 +126,7 @@ import { EmptyPageState } from "./error";
 import { NotebookPanel } from "./components/NotebookPanel";
 import { TodosPanel } from "./components/TodosPanel";
 import { readSpecIndex, createInitialContext, getAllSpecsForPage, generateSpecTaskPrompt, type SpecIndex, type SelectorInfo, type SpecSummary } from "./spec-actions";
+import { getOutputRouteConfigs } from "../router-from-output/action";
 
 // ============ SPEECH TYPES ============
 type SpeechState = "idle" | "recording" | "processing" | "speaking";
@@ -1395,7 +1384,9 @@ function FloatingBarWithRouter() {
       <HighlightOverlay />
 
       {/* Floating panel bottom right - hidden in pointer mode */}
-      {activePanel !== "pointer" && (
+      {activePanel === "tools" ? (
+        <JsonRenderSidebar tree={displayTree} isStreaming={isStreaming} />
+      ) : activePanel !== "pointer" ? (
         <div className="fixed bottom-3 right-2 z-30 flex w-72 flex-col rounded-lg border bg-gray-100 p-4 shadow-lg">
           {/* Inspector toggle button - hidden in tools mode */}
           {activePanel !== "tools" && (
@@ -1417,159 +1408,8 @@ function FloatingBarWithRouter() {
             </>
           )}
 
-          {/* Panel content - show prompt input when tools/hammer is active */}
-          {activePanel === "tools" ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm">
-                  {isFollowUpMode ? "Modify UI" : "Create UI"}
-                </h3>
-                {isStreaming && (
-                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-                    {isFollowUpMode ? "Modifying..." : "Generating..."}
-                  </span>
-                )}
-              </div>
-
-              {/* Prompt input */}
-              <form onSubmit={handleFollowUpSubmit} className="space-y-2">
-                <div className="overflow-hidden rounded-lg border border-border/60 bg-background shadow-sm focus-within:border-primary/30">
-                  <Textarea
-                    value={followUpPrompt}
-                    onChange={(e) => setFollowUpPrompt(e.target.value)}
-                    onKeyDown={handleFollowUpKeyDown}
-                    placeholder={
-                      isFollowUpMode
-                        ? "Describe how to modify the UI..."
-                        : "Describe the UI you want to create..."
-                    }
-                    disabled={isStreaming}
-                    className="min-h-[60px] resize-none border-0 bg-transparent px-3 py-2 text-xs focus-visible:ring-0 disabled:opacity-50"
-                    rows={2}
-                  />
-                  <div className="flex items-center justify-end border-t border-border/40 bg-muted/20 px-2 py-1.5">
-                    <button
-                      type="submit"
-                      disabled={isStreaming || !followUpPrompt.trim()}
-                      className={cn(
-                        "flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-all",
-                        followUpPrompt.trim() && !isStreaming
-                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                          : "bg-muted text-muted-foreground cursor-not-allowed"
-                      )}
-                    >
-                      <Send className="size-3" />
-                      {isFollowUpMode ? "Modify" : "Generate"}
-                    </button>
-                  </div>
-                </div>
-              </form>
-
-              {/* Suggestions - different for initial vs follow-up mode */}
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                  {isFollowUpMode ? "Suggestions" : "Try an example"}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {isFollowUpMode ? (
-                    FOLLOWUP_SUGGESTIONS.slice(0, 3).map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleFollowUpClick(suggestion)}
-                        disabled={isStreaming}
-                        className="rounded border border-primary/30 bg-primary/5 px-2 py-1 text-left text-[10px] text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 disabled:opacity-50"
-                      >
-                        {suggestion}
-                      </button>
-                    ))
-                  ) : (
-                    EXAMPLE_PROMPTS.slice(0, 3).map((example, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleExampleClick(example)}
-                        disabled={isStreaming}
-                        className="rounded border border-border/60 bg-background px-2 py-1 text-left text-[10px] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-muted/50 hover:text-foreground disabled:opacity-50"
-                      >
-                        {example}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Error display */}
-              {streamError && (
-                <div className="rounded bg-destructive/10 p-2 text-[10px] text-destructive">
-                  Error: {streamError.message}
-                </div>
-              )}
-
-              {/* Voice Input Section */}
-              <div className="border-t border-border/50 pt-3 mt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {speechState === "recording" ? (
-                      <div className="flex items-center gap-2 text-amber-600">
-                        <span className="relative flex h-3 w-3">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                          <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500" />
-                        </span>
-                        <span className="text-xs font-medium">Recording...</span>
-                      </div>
-                    ) : speechState === "processing" ? (
-                      <div className="flex items-center gap-2 text-rose-400">
-                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-rose-400 border-t-transparent" />
-                        <span className="text-xs font-medium">Processing...</span>
-                      </div>
-                    ) : speechState === "speaking" ? (
-                      <div className="flex items-center gap-2 text-emerald-600">
-                        <span className="relative flex h-3 w-3">
-                          <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-emerald-400 opacity-75" />
-                          <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
-                        </span>
-                        <span className="text-xs font-medium">Speaking...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mic className="h-3 w-3" />
-                        <span className="text-xs">Voice ready</span>
-                      </div>
-                    )}
-                  </div>
-                  {isAutoTalkMode && (
-                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-700">
-                      Auto-talk ON
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Transcribed text preview */}
-                {transcribedText && speechState === "recording" && (
-                  <div className="mb-2 rounded bg-muted/50 p-2 text-xs text-muted-foreground italic">
-                    &ldquo;{transcribedText}&rdquo;
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono">V</kbd>
-                  <span>Hold to speak{isAutoTalkMode ? " • Enter to stop" : " • 5s for auto-talk"}</span>
-                </div>
-
-                {isAutoTalkMode && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={stopAutoTalk}
-                    className="w-full mt-2 gap-1 text-xs"
-                  >
-                    <X className="h-3 w-3" />
-                    Stop Auto-talk
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : activePanel === "notes" ? (
+          {/* Panel content */}
+          {activePanel === "notes" ? (
             <div className="h-[320px]">
               <NotebookPanel
                 pageName={currentFolderRef.current || currentRoutePath.replace(/^\//, "") || ""}
@@ -1646,7 +1486,7 @@ function FloatingBarWithRouter() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Floating bar at bottom with voice aura effect */}
       <div

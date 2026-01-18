@@ -11,35 +11,21 @@ import React, {
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import dynamic from "next/dynamic";
 import {
-  Hammer,
   MousePointer2,
   NotebookPen,
   Crosshair,
-  Send,
   Plus,
   X,
-  Bot,
-  User,
-  Wrench,
-  CheckCircle,
-  Loader2,
-  RefreshCw,
-  FileText,
-  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { getOutputRouteConfigs } from "../router-from-output/action";
-import { useAgentStream, type ChatMessage, type ToolCall } from "./useAgentStream";
 import {
   loadTreeJson,
   createNewPage,
   addLinkToElement,
 } from "./actions";
-import { cn } from "@/lib/utils";
 import { EmptyPageState } from "./error";
 import { NotebookPanel } from "./components/NotebookPanel";
 import { createInitialContext, type SelectorInfo } from "./spec-actions";
@@ -259,108 +245,17 @@ function HighlightOverlay() {
   );
 }
 
-// ============ TOOL CALL DISPLAY ============
-function ToolCallDisplay({ tool }: { tool: ToolCall }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="border rounded p-1.5 bg-muted/30 text-[10px]">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 w-full text-left"
-      >
-        <Wrench className="h-2.5 w-2.5 text-blue-500" />
-        <span className="font-medium truncate">{tool.name}</span>
-        {tool.result !== undefined ? (
-          <CheckCircle className="h-2.5 w-2.5 text-green-500 ml-auto flex-shrink-0" />
-        ) : (
-          <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground ml-auto flex-shrink-0" />
-        )}
-      </button>
-      {expanded && (
-        <div className="mt-1.5 space-y-1">
-          <div>
-            <span className="text-muted-foreground">Input:</span>
-            <pre className="mt-0.5 p-1 bg-background rounded text-[8px] overflow-x-auto">
-              {JSON.stringify(tool.input, null, 2)}
-            </pre>
-          </div>
-          {tool.result && (
-            <div>
-              <span className="text-muted-foreground">Result:</span>
-              <pre className="mt-0.5 p-1 bg-background rounded text-[8px] overflow-x-auto max-h-16 overflow-y-auto">
-                {tool.result.slice(0, 200)}
-                {tool.result.length > 200 ? "..." : ""}
-              </pre>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============ MESSAGE DISPLAY ============
-function MessageDisplay({ message }: { message: ChatMessage }) {
-  const isUser = message.role === "user";
-  const isSystem = message.role === "system";
-
-  return (
-    <div className={cn("flex gap-1.5", isUser ? "flex-row-reverse" : "flex-row")}>
-      <div
-        className={cn(
-          "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center",
-          isUser ? "bg-primary text-primary-foreground" : "bg-muted",
-          isSystem && "bg-red-100"
-        )}
-      >
-        {isUser ? (
-          <User className="h-2.5 w-2.5" />
-        ) : isSystem ? (
-          <X className="h-2.5 w-2.5 text-red-500" />
-        ) : (
-          <Bot className="h-2.5 w-2.5" />
-        )}
-      </div>
-      <div className={cn("flex-1 space-y-1", isUser ? "text-right" : "text-left")}>
-        {message.content && (
-          <div
-            className={cn(
-              "inline-block rounded-lg px-2 py-1 text-[11px] max-w-[90%]",
-              isUser
-                ? "bg-primary text-primary-foreground"
-                : isSystem
-                ? "bg-red-50 text-red-800 border border-red-200"
-                : "bg-muted"
-            )}
-          >
-            <p className="whitespace-pre-wrap">{message.content}</p>
-          </div>
-        )}
-        {message.toolCalls && message.toolCalls.length > 0 && (
-          <div className="space-y-1 max-w-[90%]">
-            {message.toolCalls.map((tool, idx) => (
-              <ToolCallDisplay key={idx} tool={tool} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ============ FLOATING PANEL TYPES ============
-type ActivePanel = "pointer" | "notes" | "tools";
+type ActivePanel = "pointer" | "notes";
 
 const panelNames: Record<ActivePanel, string> = {
   pointer: "Select",
   notes: "Notes",
-  tools: "Tools",
 };
 
 // ============ MAIN PAGE COMPONENT ============
 function FloatingBarWithRouter() {
-  const [activePanel, setActivePanel] = useState<ActivePanel>("tools");
+  const [activePanel, setActivePanel] = useState<ActivePanel>("pointer");
   const [routes, setRoutes] = useState<RouteConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [router, setRouter] = useState<ReturnType<typeof createMemoryRouter> | null>(null);
@@ -369,8 +264,6 @@ function FloatingBarWithRouter() {
   const [showNewPageModal, setShowNewPageModal] = useState(false);
   const [newPageName, setNewPageName] = useState("");
   const [isCreatingPage, setIsCreatingPage] = useState(false);
-  const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
   const currentFolderRef = useRef<string>("");
 
   // Notebook spec state
@@ -381,29 +274,8 @@ function FloatingBarWithRouter() {
 
   const { isEnabled, toggle, enable, selectedComponent, selectComponent } = useInspector();
 
-  // Agent stream for tools panel
-  const {
-    messages,
-    isStreaming,
-    error: streamError,
-    currentToolCalls,
-    send,
-    cancel,
-    clear,
-  } = useAgentStream({
-    api: "/api/claude-agent",
-    onError: (err) => console.error("Agent error:", err),
-  });
-
   // Get current page name
   const currentPageName = currentFolderRef.current || currentRoutePath.replace(/^\//, "") || routes[0]?.path.replace(/^\//, "") || "";
-
-  // Auto-scroll messages
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, currentToolCalls]);
 
   // Hotkey handlers
   useEffect(() => {
@@ -424,12 +296,7 @@ function FloatingBarWithRouter() {
       }
 
       if (e.key === "c" || e.key === "C") {
-        if (activePanel === "tools") {
-          setActivePanel("pointer");
-          enable();
-        } else {
-          toggle();
-        }
+        toggle();
       }
     };
 
@@ -490,9 +357,9 @@ function FloatingBarWithRouter() {
     return () => unsubscribe();
   }, [router]);
 
-  // Load tree.json when tools or notes is active
+  // Load tree.json when notes is active
   useEffect(() => {
-    if (activePanel !== "tools" && activePanel !== "notes") {
+    if (activePanel !== "notes") {
       setLoadedTreeJson(null);
       return;
     }
@@ -513,37 +380,6 @@ function FloatingBarWithRouter() {
 
     fetchTree();
   }, [activePanel, currentRoutePath, routes]);
-
-  // Handle chat submit
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isStreaming) return;
-    send(input, { pageName: currentPageName });
-    setInput("");
-  };
-
-  // Quick actions
-  const handleQuickAction = (action: string) => {
-    if (isStreaming) return;
-    let prompt = "";
-    switch (action) {
-      case "list":
-        prompt = "List all files in this directory";
-        break;
-      case "tree":
-        prompt = "Read the tree.json file and summarize the components";
-        break;
-      case "create":
-        prompt = "Create a new context.md file in the components directory with a basic template";
-        break;
-      case "read":
-        prompt = "Read all context.md files and summarize what specs exist";
-        break;
-    }
-    if (prompt) {
-      send(prompt, { pageName: currentPageName });
-    }
-  };
 
   // Find element key from tree
   const findElementKeyFromSelection = useCallback(
@@ -717,9 +553,7 @@ function FloatingBarWithRouter() {
 
         currentFolderRef.current = result.folderName;
         setLoadedTreeJson(null);
-        clear();
         selectComponent(null);
-        setActivePanel("tools");
         setShowNewPageModal(false);
         setNewPageName("");
       }
@@ -728,7 +562,7 @@ function FloatingBarWithRouter() {
     } finally {
       setIsCreatingPage(false);
     }
-  }, [selectedComponent, selectComponent, clear]);
+  }, [selectedComponent, selectComponent]);
 
   return (
     <div className="relative h-screen p-4 pb-8">
@@ -759,169 +593,33 @@ function FloatingBarWithRouter() {
       {/* Highlight overlay */}
       <HighlightOverlay />
 
-      {/* Floating panel */}
-      {activePanel !== "pointer" && (
+      {/* Floating panel - Notes only */}
+      {activePanel === "notes" && (
         <div className="fixed bottom-3 right-2 z-30 flex w-80 flex-col rounded-lg border bg-gray-100 shadow-lg">
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b">
-            <div className="flex items-center gap-2">
-              <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium">outputs/{currentPageName}/</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Badge variant="outline" className="text-[9px]">
-                {isStreaming ? "Working..." : "Ready"}
-              </Badge>
-              <Button variant="ghost" size="sm" onClick={clear} disabled={isStreaming} className="h-6 w-6 p-0">
-                <RefreshCw className="h-3 w-3" />
-              </Button>
-            </div>
+          <div className="h-[340px]">
+            <NotebookPanel
+              pageName={currentPageName}
+              elementKey={specElementKey}
+              tree={loadedTreeJson}
+              initialContext={specContext}
+              onContextUpdate={(content) => setSpecContext(content)}
+              onElementKeyChange={(key) => setSpecElementKey(key)}
+            />
           </div>
 
-          {activePanel === "tools" ? (
-            <div className="flex flex-col h-[340px]">
-              {/* Messages area */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 space-y-2">
-                {messages.length === 0 && !isStreaming ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center py-4">
-                    <Bot className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                    <p className="text-xs font-medium mb-1">Agent Ready</p>
-                    <p className="text-[10px] text-muted-foreground max-w-[200px]">
-                      Ask Claude to read files, write specs, or help document your components.
-                    </p>
-                  </div>
-                ) : (
-                  messages.map((message) => (
-                    <MessageDisplay key={message.id} message={message} />
-                  ))
-                )}
-
-                {/* Current tool calls */}
-                {isStreaming && currentToolCalls.length > 0 && (
-                  <div className="flex gap-1.5">
-                    <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-muted">
-                      <Bot className="h-2.5 w-2.5" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      {currentToolCalls.map((tool, idx) => (
-                        <ToolCallDisplay key={idx} tool={tool} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Loading indicator */}
-                {isStreaming && currentToolCalls.length === 0 && (
-                  <div className="flex gap-1.5">
-                    <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-muted">
-                      <Bot className="h-2.5 w-2.5" />
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-lg">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span className="text-[10px] text-muted-foreground">Thinking...</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Quick actions */}
-              <div className="px-2 py-1.5 border-t flex items-center gap-1 flex-wrap">
-                <span className="text-[9px] text-muted-foreground">Quick:</span>
-                <button
-                  onClick={() => handleQuickAction("list")}
-                  disabled={isStreaming}
-                  className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  <FileText className="h-2.5 w-2.5 inline mr-0.5" />
-                  List files
-                </button>
-                <button
-                  onClick={() => handleQuickAction("tree")}
-                  disabled={isStreaming}
-                  className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  Read tree
-                </button>
-                <button
-                  onClick={() => handleQuickAction("create")}
-                  disabled={isStreaming}
-                  className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  Create spec
-                </button>
-                <button
-                  onClick={() => handleQuickAction("read")}
-                  disabled={isStreaming}
-                  className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  Read specs
-                </button>
-              </div>
-
-              {/* Input */}
-              <form onSubmit={handleSubmit} className="p-2 border-t">
-                <div className="flex gap-1.5">
-                  <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit(e);
-                      }
-                    }}
-                    placeholder="Ask Claude to read or write files..."
-                    disabled={isStreaming}
-                    className="min-h-[36px] max-h-[60px] resize-none text-xs"
-                    rows={1}
-                  />
-                  {isStreaming ? (
-                    <Button size="sm" type="button" variant="outline" onClick={cancel} className="h-9 w-9 p-0">
-                      <X className="h-3 w-3" />
-                    </Button>
-                  ) : (
-                    <Button size="sm" type="submit" disabled={!input.trim()} className="h-9 w-9 p-0">
-                      <Send className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </form>
-
-              {/* Error display */}
-              {streamError && (
-                <div className="mx-2 mb-2 p-2 bg-red-50 border border-red-200 rounded text-[10px] text-red-800">
-                  {streamError.message}
-                </div>
-              )}
-            </div>
-          ) : activePanel === "notes" ? (
-            <div className="h-[340px]">
-              <NotebookPanel
-                pageName={currentPageName}
-                elementKey={specElementKey}
-                tree={loadedTreeJson}
-                initialContext={specContext}
-                onContextUpdate={(content) => setSpecContext(content)}
-                onElementKeyChange={(key) => setSpecElementKey(key)}
-              />
-            </div>
-          ) : null}
-
-          {/* Inspector toggle (only in notes panel) */}
-          {activePanel === "notes" && (
-            <div className="px-3 py-2 border-t">
-              <Button
-                onClick={toggle}
-                size="sm"
-                variant={isEnabled ? "default" : "outline"}
-                className="w-full gap-2 h-7 text-xs"
-              >
-                <Crosshair className="h-3 w-3" />
-                {isEnabled ? "Inspector ON" : "Inspector OFF"}
-              </Button>
-              <p className="text-[9px] text-muted-foreground text-center mt-1">Press C to toggle</p>
-            </div>
-          )}
+          {/* Inspector toggle */}
+          <div className="px-3 py-2 border-t">
+            <Button
+              onClick={toggle}
+              size="sm"
+              variant={isEnabled ? "default" : "outline"}
+              className="w-full gap-2 h-7 text-xs"
+            >
+              <Crosshair className="h-3 w-3" />
+              {isEnabled ? "Inspector ON" : "Inspector OFF"}
+            </Button>
+            <p className="text-[9px] text-muted-foreground text-center mt-1">Press C to toggle</p>
+          </div>
         </div>
       )}
 
@@ -942,14 +640,6 @@ function FloatingBarWithRouter() {
           variant={activePanel === "notes" ? "default" : "ghost"}
         >
           <NotebookPen className="h-4 w-4" />
-        </Button>
-        <Button
-          className="h-8 w-8 rounded-full"
-          onClick={() => setActivePanel("tools")}
-          size="icon"
-          variant={activePanel === "tools" ? "default" : "ghost"}
-        >
-          <Hammer className="h-4 w-4" />
         </Button>
       </div>
 
