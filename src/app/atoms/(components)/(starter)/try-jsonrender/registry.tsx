@@ -48,9 +48,6 @@ import {
   Info,
   AlertTriangle,
   Zap,
-  Sun,
-  Moon,
-  Cloud,
   Smile,
   ThumbsUp,
 } from "lucide-react";
@@ -63,47 +60,19 @@ export const registry: ComponentRegistry = {
   // ─────────────────────────────────────────────────────────────
   // LAYOUT
   // ─────────────────────────────────────────────────────────────
-  Card: ({ element, children }) => {
-    const variant = element.props.variant ?? "default";
-    const bg = element.props.bg ?? "default";
-
-    const variantClass = {
-      default: "",
-      outline: "border-2",
-      elevated: "shadow-lg",
-      ghost: "border-none shadow-none bg-transparent",
-    }[variant];
-
-    const bgClass = {
-      default: "",
-      muted: "bg-muted",
-      pink: "bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800",
-      purple:
-        "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800",
-      amber:
-        "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",
-      "gradient-warm":
-        "bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 dark:from-pink-950/30 dark:via-rose-950/30 dark:to-orange-950/30",
-      "gradient-cool":
-        "bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/30 dark:via-indigo-950/30 dark:to-purple-950/30",
-    }[bg];
-
-    return (
-      <Card className={cn(variantClass, bgClass)}>
-        {(element.props.title || element.props.description) && (
-          <CardHeader>
-            {element.props.title && (
-              <CardTitle>{element.props.title}</CardTitle>
-            )}
-            {element.props.description && (
-              <CardDescription>{element.props.description}</CardDescription>
-            )}
-          </CardHeader>
-        )}
-        <CardContent>{children}</CardContent>
-      </Card>
-    );
-  },
+  Card: ({ element, children }) => (
+    <Card>
+      {(element.props.title || element.props.description) && (
+        <CardHeader>
+          {element.props.title && <CardTitle>{element.props.title}</CardTitle>}
+          {element.props.description && (
+            <CardDescription>{element.props.description}</CardDescription>
+          )}
+        </CardHeader>
+      )}
+      <CardContent>{children}</CardContent>
+    </Card>
+  ),
 
   Stack: ({ element, children }) => {
     const direction = element.props.direction ?? "vertical";
@@ -149,28 +118,11 @@ export const registry: ComponentRegistry = {
   },
 
   Box: ({ element, children }) => {
-    const bg = element.props.bg ?? "default";
     const padding = element.props.padding ?? "md";
     const rounded = element.props.rounded ?? "md";
     const border = element.props.border ?? false;
     const shadow = element.props.shadow ?? "none";
     const align = element.props.align ?? "left";
-
-    const bgClass = {
-      default: "",
-      muted: "bg-muted",
-      primary: "bg-primary text-primary-foreground",
-      pink: "bg-pink-100 dark:bg-pink-900/40",
-      purple: "bg-purple-100 dark:bg-purple-900/40",
-      amber: "bg-amber-100 dark:bg-amber-900/40",
-      green: "bg-green-100 dark:bg-green-900/40",
-      "gradient-warm":
-        "bg-gradient-to-br from-pink-100 via-rose-100 to-orange-100 dark:from-pink-900/40 dark:via-rose-900/40 dark:to-orange-900/40",
-      "gradient-cool":
-        "bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 dark:from-blue-900/40 dark:via-indigo-900/40 dark:to-purple-900/40",
-      "gradient-sunset":
-        "bg-gradient-to-br from-orange-100 via-red-100 to-pink-100 dark:from-orange-900/40 dark:via-red-900/40 dark:to-pink-900/40",
-    }[bg];
 
     const paddingClass = {
       none: "p-0",
@@ -205,7 +157,6 @@ export const registry: ComponentRegistry = {
     return (
       <div
         className={cn(
-          bgClass,
           paddingClass,
           roundedClass,
           shadowClass,
@@ -237,12 +188,9 @@ export const registry: ComponentRegistry = {
   Text: ({ element }) => {
     const variant = element.props.variant ?? "default";
     const size = element.props.size ?? "base";
-    const color = element.props.color ?? "default";
-    const weight = element.props.weight ?? "normal";
-    const align = element.props.align ?? "left";
 
     const variantClass = {
-      default: "",
+      default: "text-foreground",
       muted: "text-muted-foreground",
       error: "text-destructive",
       success: "text-green-600 dark:text-green-400",
@@ -252,44 +200,10 @@ export const registry: ComponentRegistry = {
       sm: "text-sm",
       base: "text-base",
       lg: "text-lg",
-      xl: "text-xl",
-      "2xl": "text-2xl",
     }[size];
 
-    const colorClass = {
-      default: "text-foreground",
-      primary: "text-primary",
-      pink: "text-pink-600 dark:text-pink-400",
-      purple: "text-purple-600 dark:text-purple-400",
-      amber: "text-amber-600 dark:text-amber-400",
-      green: "text-green-600 dark:text-green-400",
-      gradient:
-        "bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent",
-    }[color];
-
-    const weightClass = {
-      normal: "font-normal",
-      medium: "font-medium",
-      semibold: "font-semibold",
-      bold: "font-bold",
-    }[weight];
-
-    const alignClass = {
-      left: "text-left",
-      center: "text-center",
-      right: "text-right",
-    }[align];
-
     return (
-      <p
-        className={cn(
-          "leading-7",
-          sizeClass,
-          variant !== "default" ? variantClass : colorClass,
-          weightClass,
-          alignClass
-        )}
-      >
+      <p className={cn("leading-7", sizeClass, variantClass)}>
         {element.props.text}
       </p>
     );
@@ -307,13 +221,10 @@ export const registry: ComponentRegistry = {
   Icon: ({ element }) => {
     const name = element.props.name;
     const size = element.props.size ?? "md";
-    const color = element.props.color ?? "default";
 
     const iconMap = {
       heart: Heart,
-      "heart-filled": Heart,
       star: Star,
-      "star-filled": Star,
       sparkles: Sparkles,
       gift: Gift,
       party: PartyPopper,
@@ -330,9 +241,6 @@ export const registry: ComponentRegistry = {
       info: Info,
       warning: AlertTriangle,
       zap: Zap,
-      sun: Sun,
-      moon: Moon,
-      cloud: Cloud,
       smile: Smile,
       "thumbs-up": ThumbsUp,
     };
@@ -342,27 +250,12 @@ export const registry: ComponentRegistry = {
       md: "h-6 w-6",
       lg: "h-8 w-8",
       xl: "h-12 w-12",
-      "2xl": "h-16 w-16",
     }[size];
-
-    const colorClass = {
-      default: "text-foreground",
-      muted: "text-muted-foreground",
-      primary: "text-primary",
-      pink: "text-pink-500",
-      red: "text-red-500",
-      purple: "text-purple-500",
-      amber: "text-amber-500",
-      green: "text-green-500",
-    }[color];
 
     const IconComponent = iconMap[name as keyof typeof iconMap];
     if (!IconComponent) return null;
 
-    const isFilled =
-      name === "heart-filled" || name === "star-filled" ? "fill-current" : "";
-
-    return <IconComponent className={cn(sizeClass, colorClass, isFilled)} />;
+    return <IconComponent className={cn(sizeClass, "text-foreground")} />;
   },
 
   Metric: ({ element }) => {
