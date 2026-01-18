@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 
 const SYSTEM_PROMPT = `You are a UI generator that outputs JSONL patches to build component trees.
@@ -110,7 +110,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     system: SYSTEM_PROMPT,
     prompt: `Generate UI components for: ${prompt}`,
     temperature: 0.7,
