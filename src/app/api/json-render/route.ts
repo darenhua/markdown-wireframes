@@ -1,9 +1,10 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 
-const SYSTEM_PROMPT = `You are a UI generator that outputs JSONL patches to build component trees.
+// Shared component definitions and UI conventions
+const BASE_SYSTEM_PROMPT = `You are a UI generator that outputs JSONL patches to build component trees.
 
-Available components (use these exact type names):
+AVAILABLE COMPONENTS (use these exact type names):
 
 LAYOUT:
 - Card: { title?: string, description?: string } - Container with optional header. Use for grouped content. Can have children.
@@ -71,6 +72,16 @@ TEXT HIERARCHY:
 - Body text inside cards/containers should use Text with size="base" or "sm"
 - Muted variant (variant="muted") works well for secondary/supporting text
 
+JSON RULES:
+- Every element MUST have: key, type, props
+- children is an array of string keys (not nested objects)
+- Use descriptive keys like "main-card", "welcome-heading", "submit-btn"
+- Parent elements must list their children's keys in the children array
+- Output root patch first, then all element patches`;
+
+// Mode-specific instructions
+const DIRECT_MODE_INSTRUCTIONS = `
+
 OUTPUT FORMAT - You MUST output JSONL (one JSON object per line) with these exact patch operations:
 
 1. First, set the root element key:
@@ -82,10 +93,6 @@ OUTPUT FORMAT - You MUST output JSONL (one JSON object per line) with these exac
 CRITICAL RULES:
 - Output ONLY valid JSONL - one JSON object per line
 - NO markdown, NO explanation, NO code blocks, NO extra text
-- Every element MUST have: key, type, props
-- children is an array of string keys (not nested objects)
-- Use descriptive keys like "main-card", "welcome-heading", "submit-btn"
-- Parent elements must list their children's keys in the children array
 - Output root first, then all elements
 
 EXAMPLE for "Create a welcome card with greeting and button":
@@ -94,28 +101,124 @@ EXAMPLE for "Create a welcome card with greeting and button":
 {"op":"set","path":"/elements/greeting-text","value":{"key":"greeting-text","type":"Text","props":{"text":"Hello! Welcome to our app."}}}
 {"op":"set","path":"/elements/start-btn","value":{"key":"start-btn","type":"Button","props":{"label":"Get Started","variant":"default"}}}`;
 
+const CHAT_MODE_INSTRUCTIONS = `
+
+OUTPUT FORMAT - Your response has TWO parts separated by "---":
+
+1. JSONL patches (output these FIRST):
+{"op":"set","path":"/root","value":"key"}
+{"op":"set","path":"/elements/key","value":{...}}
+
+2. Then "---" separator
+
+3. Then your conversational response (1-2 sentences). Ask clarifying questions if the request is vague, or confirm what you built.
+
+EXAMPLE:
+{"op":"set","path":"/root","value":"welcome-card"}
+{"op":"set","path":"/elements/welcome-card","value":{"key":"welcome-card","type":"Card","props":{"title":"Welcome"},"children":["greeting-text"]}}
+{"op":"set","path":"/elements/greeting-text","value":{"key":"greeting-text","type":"Text","props":{"text":"Hello!"}}}
+---
+Created a welcome card with a greeting. Would you like to add any buttons or additional content?
+
+BEHAVIOR:
+- Vague request → generate reasonable UI + ask 1 clarifying question
+- Specific request → generate UI + brief confirmation
+- Update request → only output changed/new elements
+- ALWAYS output JSON first, then ---, then chat text
+- NO markdown code blocks around the JSON`;
+
 export async function POST(req: Request) {
-  console.log("=== /api/json-render POST called ===");
-
   const body = await req.json();
-  console.log("Request body:", JSON.stringify(body, null, 2));
+  const { mode, prompt, messages, currentTree } = body;
 
-  // useUIStream sends { prompt: string, context?: object, currentTree: object }
-  const prompt = body.prompt;
-  console.log("Prompt:", prompt);
+  // Direct mode: one-shot prompt → JSONL (used by try-jsonrender)
+  if (mode === "direct" || (!mode && prompt)) {
+    if (!prompt) {
+      return new Response("Missing prompt", { status: 400 });
+    }
 
-  if (!prompt) {
-    console.log("No prompt found, returning error");
-    return new Response("Missing prompt", { status: 400 });
+    const result = streamText({
+      model: anthropic("claude-haiku-4-5-20251001"),
+      messages: [
+        {
+          role: "system" as const,
+          content: BASE_SYSTEM_PROMPT + DIRECT_MODE_INSTRUCTIONS,
+          providerOptions: {
+            anthropic: { cacheControl: { type: "ephemeral" } },
+          },
+        },
+        {
+          role: "user" as const,
+          content: `Generate UI components for: ${prompt}`,
+        },
+      ],
+      temperature: 0.7,
+    });
+    return result.toTextStreamResponse();
   }
 
-  const result = streamText({
-    model: anthropic("claude-haiku-4-5-20251001"),
-    system: SYSTEM_PROMPT,
-    prompt: `Generate UI components for: ${prompt}`,
-    temperature: 0.7,
-  });
+  // Chat mode: multi-turn conversation → JSONL + Chat (used by wireframe-chat)
+  if (mode === "chat") {
+    // Trim to last 5 messages for token efficiency
+    const recentMessages = messages?.length > 5 ? messages.slice(-5) : messages;
 
-  console.log("streamText called, returning response");
-  return result.toTextStreamResponse();
+    // Compact tree context (no pretty printing to save tokens)
+    let treeContext = "";
+    if (currentTree?.root && Object.keys(currentTree.elements || {}).length > 0) {
+      treeContext = `\n\nCURRENT TREE:\n${JSON.stringify(currentTree)}\n\nUpdate or extend based on user request.`;
+    }
+
+    // Build messages array with cached system prompt
+    const systemMessages = [
+      {
+        role: "system" as const,
+        content: BASE_SYSTEM_PROMPT + CHAT_MODE_INSTRUCTIONS,
+        // Cache the static system prompt (component definitions + instructions)
+        providerOptions: {
+          anthropic: { cacheControl: { type: "ephemeral" } },
+        },
+      },
+      // Add tree context as a separate uncached system message if present
+      ...(treeContext
+        ? [{ role: "system" as const, content: treeContext }]
+        : []),
+    ];
+
+    // Combine system messages with user/assistant messages
+    const allMessages = [...systemMessages, ...recentMessages];
+
+    const result = streamText({
+      model: anthropic("claude-haiku-4-5-20251001"),
+      messages: allMessages,
+      temperature: 0.7,
+    });
+
+    // Create a custom stream that appends token usage at the end
+    const encoder = new TextEncoder();
+
+    const customStream = new ReadableStream({
+      async start(controller) {
+        // Stream the text content
+        for await (const chunk of result.textStream) {
+          controller.enqueue(encoder.encode(chunk));
+        }
+
+        // After streaming completes, append token usage metadata
+        // This includes cache read/write info when using caching
+        const usage = await result.usage;
+        const tokenMetadata = `\n[[TOKENS:${JSON.stringify(usage)}]]`;
+        controller.enqueue(encoder.encode(tokenMetadata));
+
+        controller.close();
+      },
+    });
+
+    return new Response(customStream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+  }
+
+  return new Response("Invalid request: specify mode or prompt", { status: 400 });
 }
