@@ -1,53 +1,5 @@
 "use client";
 
-interface SpeechRecognitionResultItem {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionResult {
-  [index: number]: SpeechRecognitionResultItem;
-  length: number;
-  isFinal: boolean;
-}
-
-interface SpeechRecognitionResultList {
-  [index: number]: SpeechRecognitionResult;
-  length: number;
-}
-
-interface SpeechRecognitionEventLocal extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEventLocal extends Event {
-  error: string;
-  message: string;
-}
-
-interface SpeechRecognitionLocal {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  onresult: ((event: SpeechRecognitionEventLocal) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLocal) => void) | null;
-  onend: (() => void) | null;
-}
-
-interface SpeechRecognitionConstructor {
-  new(): SpeechRecognitionLocal;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
-
 import React, {
   useState,
   useCallback,
@@ -308,35 +260,6 @@ const panelNames: Record<ActivePanel, string> = {
 
 type GenerationMode = "standard" | "ensemble";
 type PreviewSource = "merged" | "A" | "B" | "C";
-type SpeechState = "idle" | "recording" | "processing" | "speaking";
-
-async function textToSpeech(text: string): Promise<void> {
-  const response = await fetch("/api/elevenlabs/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to generate speech");
-  }
-
-  const audioBlob = await response.blob();
-  const audioUrl = URL.createObjectURL(audioBlob);
-  const audio = new Audio(audioUrl);
-
-  return new Promise((resolve, reject) => {
-    audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      resolve();
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(audioUrl);
-      reject(new Error("Audio playback failed"));
-    };
-    audio.play();
-  });
-}
 
 type EnsembleMetadata = {
   evaluatorVariant: string;
@@ -369,18 +292,6 @@ function FloatingBarWithRouter() {
   const [isCreatingPage, setIsCreatingPage] = useState(false);
   const currentFolderRef = useRef<string>("");
 
-  const [speechState, setSpeechState] = useState<SpeechState>("idle");
-  const speechRecognitionRef = useRef<SpeechRecognitionLocal | null>(null);
-  const isVKeyHeldRef = useRef(false);
-  const transcribedTextRef = useRef("");
-  const sendMessageRef = useRef<((text: string) => Promise<void>) | null>(null);
-  const handleSendMessageReady = useCallback(
-    (sendFn: (text: string) => Promise<void>) => {
-      sendMessageRef.current = sendFn;
-    },
-    []
-  );
-
   // Notebook spec state
   const [specElementKey, setSpecElementKey] = useState<string | null>(null);
   const [specContext, setSpecContext] = useState<string>("");
@@ -392,7 +303,7 @@ function FloatingBarWithRouter() {
     root: string | null;
     elements: Record<string, unknown>;
   };
-
+  
   const [chatTree, setChatTree] = useState<LocalUITree | null>(null);
   const [ensembleTrees, setEnsembleTrees] = useState<{
     merged: LocalUITree;
@@ -407,7 +318,7 @@ function FloatingBarWithRouter() {
   });
   const [generationMode, setGenerationMode] = useState<GenerationMode>("standard");
   const [ensembleMetadata, setEnsembleMetadata] = useState<EnsembleMetadata | null>(null);
-
+  
   // Initialize preview source from URL or default
   const [previewSource, setPreviewSource] = useState<PreviewSource>(() => {
     if (typeof window !== "undefined") {
@@ -431,7 +342,7 @@ function FloatingBarWithRouter() {
     return "";
   });
 
-  const { isEnabled, toggle, selectedComponent, selectComponent } = useInspector();
+  const { isEnabled, toggle, enable, selectedComponent, selectComponent } = useInspector();
 
   // Get current page name
   const currentPageName = currentFolderRef.current || currentRoutePath.replace(/^\//, "") || routes[0]?.path.replace(/^\//, "") || "";
@@ -440,16 +351,16 @@ function FloatingBarWithRouter() {
   const updateCurrentPage = useCallback((pageName: string) => {
     setCurrentPage(pageName);
     currentFolderRef.current = pageName;
-
+    
     if (typeof window !== "undefined") {
       // Update localStorage
       localStorage.setItem("specstack-current-page", pageName);
-
+      
       // Update URL query param
       const url = new URL(window.location.href);
       url.searchParams.set("page", pageName);
       window.history.replaceState({}, "", url.toString());
-
+      
       console.log(`📄 Current page set to: ${pageName}`);
     }
   }, []);
@@ -494,18 +405,6 @@ function FloatingBarWithRouter() {
           if (loadedTree) {
             setLoadedTreeJson(loadedTree);
             setChatTree(loadedTree as LocalUITree);
-
-            // Exit ensemble mode and show single saved tree
-            if (generationMode === "ensemble") {
-              setGenerationMode("standard");
-              setEnsembleTrees({
-                merged: { root: null, elements: {} },
-                A: { root: null, elements: {} },
-                B: { root: null, elements: {} },
-                C: { root: null, elements: {} },
-              });
-              console.log("📄 Exited merge mode, showing saved tree");
-            }
           }
         } else {
           console.error("❌ Failed to save tree.json:", result.message);
@@ -515,88 +414,6 @@ function FloatingBarWithRouter() {
       }
     }
   }, [chatTree, ensembleTrees, generationMode, previewSource, currentPage]);
-
-  const initSpeechRecognition = useCallback((): SpeechRecognitionLocal | null => {
-    if (typeof window === "undefined") return null;
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognitionCtor) {
-      console.warn("Speech recognition not supported");
-      return null;
-    }
-
-    const recognition = new SpeechRecognitionCtor();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event: SpeechRecognitionEventLocal) => {
-      const parts: string[] = [];
-      for (let i = 0; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        if (result && result[0]) {
-          parts.push(result[0].transcript);
-        }
-      }
-      const transcript = parts.join("");
-      transcribedTextRef.current = transcript;
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEventLocal) => {
-      console.error("Speech recognition error:", event.error);
-      setSpeechState("idle");
-    };
-
-    recognition.onend = () => {
-      speechRecognitionRef.current = null;
-    };
-
-    return recognition;
-  }, []);
-
-  const startRecording = useCallback(() => {
-    const recognition = initSpeechRecognition();
-    if (!recognition) return;
-    speechRecognitionRef.current = recognition;
-    transcribedTextRef.current = "";
-    setSpeechState("recording");
-    recognition.start();
-  }, [initSpeechRecognition]);
-
-  const stopRecording = useCallback(() => {
-    if (speechRecognitionRef.current) {
-      speechRecognitionRef.current.stop();
-      speechRecognitionRef.current = null;
-    }
-  }, []);
-
-  const processVoiceInput = useCallback(async (text: string) => {
-    if (!text.trim()) {
-      setSpeechState("idle");
-      return;
-    }
-
-    setSpeechState("processing");
-    try {
-      if (sendMessageRef.current) {
-        await sendMessageRef.current(text);
-      } else {
-        console.warn("Voice prompt received before chat sidebar was ready");
-      }
-    } catch (error) {
-      console.error("Failed to send voice prompt:", error);
-    }
-
-    transcribedTextRef.current = "";
-
-    try {
-      setSpeechState("speaking");
-      await textToSpeech("Got it. Sending your prompt to the chat.");
-    } catch (error) {
-      console.error("TTS error:", error);
-    } finally {
-      setSpeechState("idle");
-    }
-  }, []);
 
   // Hotkey handlers
   useEffect(() => {
@@ -628,59 +445,20 @@ function FloatingBarWithRouter() {
         return;
       }
 
-      if (e.key === "v" || e.key === "V") {
-        e.preventDefault();
-        if (!isVKeyHeldRef.current && speechState === "idle") {
-          isVKeyHeldRef.current = true;
-          startRecording();
-        }
-        return;
-      }
-
       if (e.key === "c" || e.key === "C") {
         toggle();
       }
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "v" || e.key === "V") {
-        if (isVKeyHeldRef.current) {
-          isVKeyHeldRef.current = false;
-          stopRecording();
-          setTimeout(() => {
-            processVoiceInput(transcribedTextRef.current);
-          }, 150);
-        }
-      }
-    };
-
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      stopRecording();
-    };
-  }, [
-    toggle,
-    selectedComponent,
-    generationMode,
-    handleManualSave,
-    startRecording,
-    stopRecording,
-    processVoiceInput,
-    speechState,
-  ]);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toggle, enable, selectedComponent, activePanel, generationMode, handleManualSave]);
 
   // Fetch routes on mount and load the current page's tree
   useEffect(() => {
-    let isMounted = true;
-    
     async function loadRoutes() {
       try {
         const configs = await getOutputRouteConfigs();
-        if (!isMounted) return;
-        
         setRoutes(configs);
 
         if (configs.length > 0) {
@@ -708,7 +486,6 @@ function FloatingBarWithRouter() {
             initialIndex: 0,
           });
 
-          if (!isMounted) return;
           setRouter(newRouter);
 
           // Determine which page to load: query param > localStorage > first page
@@ -728,11 +505,11 @@ function FloatingBarWithRouter() {
 
           // Set as current page
           updateCurrentPage(pageToLoad);
-
+          
           // Load the tree.json for this page
           try {
             const treeData = await loadTreeJson(pageToLoad);
-            if (isMounted && treeData && treeData.root) {
+            if (treeData && treeData.root) {
               setChatTree(treeData as LocalUITree);
               console.log(`📂 Loaded saved tree from outputs/${pageToLoad}/tree.json`);
             }
@@ -743,17 +520,10 @@ function FloatingBarWithRouter() {
       } catch (error) {
         console.error("Failed to load output routes:", error);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     }
-    
     loadRoutes();
-    
-    return () => {
-      isMounted = false;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -978,19 +748,6 @@ function FloatingBarWithRouter() {
     }
   }, [selectedComponent, selectComponent, updateCurrentPage]);
 
-  const getAuraStyles = useCallback(() => {
-    switch (speechState) {
-      case "recording":
-        return "shadow-[0_0_30px_10px_rgba(200,160,100,0.6),0_0_60px_20px_rgba(200,160,100,0.35),0_0_90px_30px_rgba(200,160,100,0.15)]";
-      case "processing":
-        return "shadow-[0_0_15px_5px_rgba(180,110,110,0.5),0_0_30px_10px_rgba(180,110,110,0.25)]";
-      case "speaking":
-        return "shadow-[0_0_15px_5px_rgba(120,160,130,0.5),0_0_30px_10px_rgba(120,160,130,0.25)]";
-      default:
-        return "";
-    }
-  }, [speechState]);
-
   return (
     <div className="relative h-screen p-4 pb-8">
       <div className="flex h-full w-full gap-4">
@@ -1000,7 +757,6 @@ function FloatingBarWithRouter() {
             onEnsembleTreesUpdate={setEnsembleTrees}
             onGenerationModeChange={setGenerationMode}
             onEnsembleMetadataUpdate={setEnsembleMetadata}
-            onSendMessageReady={handleSendMessageReady}
           />
         </div>
 
@@ -1008,6 +764,11 @@ function FloatingBarWithRouter() {
           {/* Fixed title and current page indicator */}
           <div className="fixed bottom-8 right-8 z-50">
             <div className="flex flex-col items-end gap-1">
+              {currentPage && (
+                <div className="text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                  📄 {currentPage}
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <span className="text-xl font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
                   SpecStack
@@ -1154,12 +915,7 @@ function FloatingBarWithRouter() {
           )}
 
           {/* Floating bar */}
-          <div
-            className={cn(
-              "absolute -bottom-6 left-1/2 z-40 flex -translate-x-1/2 gap-1 rounded-full border bg-background/95 px-1.5 py-1 shadow-lg backdrop-blur-sm",
-              getAuraStyles()
-            )}
-          >
+          <div className="absolute -bottom-6 left-1/2 z-40 flex -translate-x-1/2 gap-1 rounded-full border bg-background/95 px-1.5 py-1 shadow-lg backdrop-blur-sm">
             <Button
               className="h-8 w-8 rounded-full"
               onClick={() => setActivePanel("pointer")}

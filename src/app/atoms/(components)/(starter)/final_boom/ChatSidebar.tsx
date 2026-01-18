@@ -1,0 +1,676 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+
+const EXAMPLE_PROMPTS = [
+  "Create a welcome card with a greeting and get started button",
+  "Build a metrics dashboard with revenue, users, and growth stats",
+  "Design a contact form with name, email, and message fields",
+  "Create a pricing card with features list and subscribe button",
+];
+
+type TokenUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+};
+
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  tokens?: TokenUsage;
+};
+
+type UITree = {
+  root: string | null;
+  elements: Record<string, unknown>;
+};
+
+type GenerationMode = "standard" | "ensemble";
+type PreviewSource = "merged" | "A" | "B" | "C";
+
+function parseResponse(text: string): { chat: string; json: string } {
+  if (!text) return { chat: "", json: "" };
+
+  const parts = text.split("---");
+  if (parts.length >= 2) {
+    let jsonSection = parts[0].trim();
+    const chatSection = parts.slice(1).join("---").trim();
+
+    const codeBlockMatch = jsonSection.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      jsonSection = codeBlockMatch[1].trim();
+    }
+
+    return { chat: chatSection, json: jsonSection };
+  }
+
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{")) {
+    return { chat: "", json: trimmed };
+  }
+
+  return { chat: trimmed, json: "" };
+}
+
+function applyPatches(tree: UITree, jsonl: string): UITree {
+  if (!jsonl || !jsonl.trim()) return tree;
+
+  const cleaned = jsonl
+    .replace(/```json\n?/g, "")
+    .replace(/```jsonl\n?/g, "")
+    .replace(/```\n?/g, "")
+    .trim();
+
+  const newTree = { ...tree, elements: { ...tree.elements } };
+  const lines = cleaned.split("\n").filter((line) => line.trim());
+
+  for (const line of lines) {
+    try {
+      const patch = JSON.parse(line);
+      if (patch.op === "set") {
+        if (patch.path === "/root") {
+          newTree.root = patch.value;
+        } else if (patch.path.startsWith("/elements/")) {
+          const key = patch.path.replace("/elements/", "");
+          newTree.elements[key] = patch.value;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to parse patch:", line, e);
+    }
+  }
+
+  return newTree;
+}
+
+type EnsembleMetadata = {
+  evaluatorVariant: string;
+  timing: {
+    generatorsMs: number;
+    evaluatorMs: number;
+    totalMs: number;
+  };
+  generators: {
+    A: { model: string; outputLength: number; usage: unknown };
+    B: { model: string; outputLength: number; usage: unknown };
+    C: { model: string; outputLength: number; usage: unknown };
+  };
+  evaluator: {
+    model: string;
+    usage: unknown;
+  };
+};
+
+interface ChatSidebarProps {
+  onTreeUpdate?: (tree: UITree | null) => void;
+  onEnsembleTreesUpdate?: (trees: {
+    merged: UITree;
+    A: UITree;
+    B: UITree;
+    C: UITree;
+  }) => void;
+  onGenerationModeChange?: (mode: GenerationMode) => void;
+  onEnsembleMetadataUpdate?: (metadata: EnsembleMetadata | null) => void;
+}
+
+export function ChatSidebar({
+  onTreeUpdate,
+  onEnsembleTreesUpdate,
+  onGenerationModeChange,
+  onEnsembleMetadataUpdate,
+}: ChatSidebarProps) {
+  const [tree, setTree] = useState<UITree>({ root: null, elements: {} });
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>("standard");
+  const [previewSource, setPreviewSource] = useState<PreviewSource>("merged");
+  const [ensembleTrees, setEnsembleTrees] = useState<{
+    merged: UITree;
+    A: UITree;
+    B: UITree;
+    C: UITree;
+  }>({
+    merged: { root: null, elements: {} },
+    A: { root: null, elements: {} },
+    B: { root: null, elements: {} },
+    C: { root: null, elements: {} },
+  });
+  const [ensembleMetadata, setEnsembleMetadata] = useState<EnsembleMetadata | null>(null);
+  const totalTokens = messages.reduce(
+    (acc, msg) => {
+      if (msg.tokens) {
+        acc.prompt += msg.tokens.promptTokens ?? 0;
+        acc.completion += msg.tokens.completionTokens ?? 0;
+        acc.total += msg.tokens.totalTokens ?? 0;
+      }
+      return acc;
+    },
+    { prompt: 0, completion: 0, total: 0 }
+  );
+
+  const currentTree =
+    generationMode === "ensemble" && ensembleTrees[previewSource].root
+      ? ensembleTrees[previewSource]
+      : tree;
+
+  // Notify parent of tree updates
+  useEffect(() => {
+    onTreeUpdate?.(tree);
+  }, [tree, onTreeUpdate]);
+
+  // Notify parent of ensemble trees updates
+  useEffect(() => {
+    onEnsembleTreesUpdate?.(ensembleTrees);
+  }, [ensembleTrees, onEnsembleTreesUpdate]);
+
+  // Notify parent of generation mode changes
+  useEffect(() => {
+    onGenerationModeChange?.(generationMode);
+  }, [generationMode, onGenerationModeChange]);
+
+  // Notify parent of ensemble metadata updates
+  useEffect(() => {
+    onEnsembleMetadataUpdate?.(ensembleMetadata);
+  }, [ensembleMetadata, onEnsembleMetadataUpdate]);
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || isLoading) return;
+
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: text,
+      };
+
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+      setInput("");
+      setIsLoading(true);
+
+      if (generationMode === "ensemble") {
+        setPreviewSource("merged");
+        setEnsembleTrees({
+          merged: { root: null, elements: {} },
+          A: { root: null, elements: {} },
+          B: { root: null, elements: {} },
+          C: { root: null, elements: {} },
+        });
+        setEnsembleMetadata(null);
+      }
+
+      try {
+        if (generationMode === "ensemble") {
+          const response = await fetch("/api/ensemble-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt: text,
+              evaluatorVariant: "mergeStructured",
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch response");
+          }
+
+          const data = await response.json();
+          const assistantId = `assistant-${Date.now()}`;
+
+          const emptyTree: UITree = { root: null, elements: {} };
+          const newTrees = {
+            merged: data.result ? applyPatches(emptyTree, data.result) : emptyTree,
+            A: data.rawOutputs?.A ? applyPatches(emptyTree, data.rawOutputs.A) : emptyTree,
+            B: data.rawOutputs?.B ? applyPatches(emptyTree, data.rawOutputs.B) : emptyTree,
+            C: data.rawOutputs?.C ? applyPatches(emptyTree, data.rawOutputs.C) : emptyTree,
+          };
+
+          setEnsembleTrees(newTrees);
+          setTree(newTrees.merged);
+          setEnsembleMetadata(data.metadata);
+
+          const totalEnsembleTokens =
+            (data.metadata?.generators?.A?.usage?.totalTokens || 0) +
+            (data.metadata?.generators?.B?.usage?.totalTokens || 0) +
+            (data.metadata?.generators?.C?.usage?.totalTokens || 0) +
+            (data.metadata?.evaluator?.usage?.totalTokens || 0);
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: assistantId,
+              role: "assistant",
+              content: `Generated UI from 3 models (${data.metadata?.timing?.totalMs}ms). Use the preview toggles to compare.`,
+              tokens: {
+                promptTokens: 0,
+                completionTokens: 0,
+                totalTokens: totalEnsembleTokens,
+              },
+            },
+          ]);
+        } else {
+          const response = await fetch("/api/json-render", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode: "chat",
+              messages: updatedMessages.map((m) => ({
+                role: m.role,
+                content: m.content,
+              })),
+              currentTree,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch response");
+          }
+
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error("No reader available");
+
+          const decoder = new TextDecoder();
+          let assistantContent = "";
+          const assistantId = `assistant-${Date.now()}`;
+
+          setMessages((prev) => [
+            ...prev,
+            { id: assistantId, role: "assistant", content: "" },
+          ]);
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            assistantContent += chunk;
+
+            const contentWithoutTokens = assistantContent.replace(/\n\[\[TOKENS:.*\]\]$/, "");
+            const { json } = parseResponse(contentWithoutTokens);
+            if (json) {
+              setTree((prev) => applyPatches(prev, json));
+            }
+
+            const parts = contentWithoutTokens.split("---");
+            if (parts.length >= 2) {
+              const chatText = parts.slice(1).join("---").trim();
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, content: chatText || "..." } : m
+                )
+              );
+            }
+          }
+
+          const tokenMatch = assistantContent.match(/\[\[TOKENS:(.*)\]\]$/);
+          let tokens: TokenUsage | undefined;
+          if (tokenMatch) {
+            try {
+              tokens = JSON.parse(tokenMatch[1]);
+            } catch {
+              console.warn("Failed to parse token metadata");
+            }
+          }
+
+          const cleanContent = assistantContent.replace(/\n\[\[TOKENS:.*\]\]$/, "");
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, content: cleanContent, tokens } : m
+            )
+          );
+
+          const { json } = parseResponse(cleanContent);
+          if (json) {
+            setTree((prev) => applyPatches(prev, json));
+          }
+        }
+      } catch (error) {
+        console.error("Error sending message:", error);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: "assistant",
+            content: "Sorry, there was an error processing your request.",
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [currentTree, generationMode, messages, isLoading]
+  );
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    sendMessage(input);
+  };
+
+  const handleExampleClick = (example: string) => {
+    setInput(example);
+    sendMessage(example);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage(input);
+    }
+  };
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  return (
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/50 bg-background/80 shadow-xl shadow-black/5">
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-primary/3 via-transparent to-transparent" />
+
+      <header className="relative z-10 flex items-center justify-between border-b border-border/50 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-lg border border-border/60 bg-muted/30 p-1">
+            <button
+              type="button"
+              onClick={() => setGenerationMode("standard")}
+              disabled={isLoading}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50",
+                generationMode === "standard"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              onClick={() => setGenerationMode("ensemble")}
+              disabled={isLoading}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50",
+                generationMode === "ensemble"
+                  ? "bg-linear-to-r from-emerald-500 to-teal-500 text-white shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Compare 3 Models
+            </button>
+          </div>
+        </div>
+
+        {totalTokens.total > 0 && (
+          <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-1.5">
+            <svg
+              className="h-4 w-4 text-muted-foreground"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+              />
+            </svg>
+            <div className="text-xs">
+              <span className="font-medium text-foreground">
+                {totalTokens.total.toLocaleString()}
+              </span>
+              <span className="text-muted-foreground ml-1">tokens</span>
+            </div>
+          </div>
+        )}
+      </header>
+
+      <div className="relative z-10 flex-1 overflow-hidden">
+        {messages.length === 0 ? (
+          <div className="space-y-6 px-6 py-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm transition-shadow focus-within:border-primary/30 focus-within:shadow-md focus-within:shadow-primary/5">
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    generationMode === "ensemble"
+                      ? "Describe the UI you want to create (will generate 3 versions)..."
+                      : "Describe the UI you want to create..."
+                  }
+                  disabled={isLoading}
+                  className="min-h-[100px] resize-none border-0 bg-transparent px-4 py-3.5 text-sm focus-visible:ring-0 disabled:opacity-50"
+                  rows={4}
+                />
+                <div className="flex items-center justify-between border-t border-border/40 bg-muted/20 px-3 py-2">
+                  <p className="text-[10px] text-muted-foreground/60">Press Enter to generate</p>
+                  <button
+                    type="submit"
+                    disabled={isLoading || !input.trim()}
+                    className={cn(
+                      "flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200",
+                      input.trim() && !isLoading
+                        ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                        : "bg-muted text-muted-foreground cursor-not-allowed"
+                    )}
+                  >
+                    {isLoading ? (
+                      <>
+                        <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>Generate</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Try an example
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {EXAMPLE_PROMPTS.map((example, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleExampleClick(example)}
+                    disabled={isLoading}
+                    className="rounded-lg border border-border/60 bg-background px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:bg-muted/50 hover:text-foreground disabled:opacity-50"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <ScrollArea className="flex h-full flex-col overflow-y-auto px-6 py-4">
+            <div ref={scrollRef} className="flex flex-col space-y-6">
+              {(() => {
+                const firstAssistantIndex = messages.findIndex((m) => m.role === "assistant");
+                return messages.map((message, index) => {
+                  const { chat, json } = parseResponse(message.content);
+                  const displayText =
+                    message.role === "user" ? message.content : chat || message.content;
+                  const isFirstAssistant = index === firstAssistantIndex;
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={cn(
+                        "flex gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300",
+                        message.role === "user" ? "flex-row-reverse" : "flex-row"
+                      )}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div
+                        className={cn(
+                          "max-w-[85%] space-y-2",
+                          message.role === "user" ? "text-right" : "text-left"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "inline-block rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                            message.role === "user"
+                              ? "bg-primary text-primary-foreground rounded-br-md"
+                              : "bg-muted/60 text-foreground rounded-bl-md"
+                          )}
+                        >
+                          {message.role === "assistant" && !displayText && isLoading ? (
+                            <div className="flex items-center gap-1 py-0.5">
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground/40" />
+                              <span
+                                className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground/40"
+                                style={{ animationDelay: "150ms" }}
+                              />
+                              <span
+                                className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground/40"
+                                style={{ animationDelay: "300ms" }}
+                              />
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap">{displayText}</p>
+                          )}
+                        </div>
+                        {isFirstAssistant && json && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Generated JSON
+                            </p>
+                            <pre className="overflow-auto rounded-lg bg-muted/50 p-3 text-[10px] text-muted-foreground">
+                              {JSON.stringify(tree, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {message.role === "assistant" && message.tokens && (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
+                              <svg
+                                className="h-3 w-3"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={1.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+                                />
+                              </svg>
+                              <span>{(message.tokens.totalTokens ?? 0).toLocaleString()} tokens</span>
+                            </div>
+                            <div className="flex items-center gap-0.5 text-xs text-amber-500/70 ml-4">
+                              <svg
+                                className="h-3 w-3"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"
+                                />
+                              </svg>
+                              <span>+{(message.tokens.totalTokens ?? 0).toLocaleString()} this turn</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+              {isLoading && messages[messages.length - 1]?.role === "user" && (
+                <div className="flex gap-3 animate-in fade-in-0 duration-300">
+                  <Avatar className="mt-0.5 h-7 w-7 shrink-0">
+                    <AvatarFallback className="bg-linear-to-br from-primary/20 to-primary/10 text-primary text-[10px] font-medium">
+                      AI
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-muted/60 px-4 py-3">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground/40" />
+                    <span
+                      className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground/40"
+                      style={{ animationDelay: "150ms" }}
+                    />
+                    <span
+                      className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground/40"
+                      style={{ animationDelay: "300ms" }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        )}
+      </div>
+
+      {messages.length > 0 && (
+        <div className="relative z-10 border-t border-border/50 p-4">
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm transition-shadow focus-within:border-primary/30 focus-within:shadow-md focus-within:shadow-primary/5">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Describe changes or ask a question..."
+                disabled={isLoading}
+                className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3.5 text-sm focus-visible:ring-0 disabled:opacity-50"
+                rows={1}
+              />
+              <div className="flex items-center justify-between border-t border-border/40 bg-muted/20 px-3 py-2">
+                <p className="text-[10px] text-muted-foreground/60">Press Enter to send</p>
+                <button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
+                    input.trim() && !isLoading
+                      ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                  )}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}

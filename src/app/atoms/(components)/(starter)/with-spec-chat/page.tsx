@@ -1385,9 +1385,9 @@ function FloatingBarWithRouter() {
 
       {/* Floating panel bottom right - hidden in pointer mode */}
       {activePanel === "tools" ? (
-        <JsonRenderSidebar tree={displayTree} isStreaming={isStreaming} />
+        <></>
       ) : activePanel !== "pointer" ? (
-        <div className="fixed bottom-3 right-2 z-30 flex w-72 flex-col rounded-lg border bg-gray-100 p-4 shadow-lg">
+        <div className="fixed bottom-3 left-12 z-30 flex w-72 flex-col rounded-lg border bg-gray-100 p-4 shadow-lg">
           {/* Inspector toggle button - hidden in tools mode */}
           {activePanel !== "tools" && (
             <>
@@ -1773,6 +1773,55 @@ function FloatingBarWithRouter() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function JsonRenderSidebar({
+  tree,
+  isStreaming,
+}: {
+  tree: UITree | null;
+  isStreaming: boolean;
+}) {
+  return (
+    <div className="fixed inset-y-4 right-4 z-40 flex w-[360px] max-w-[90vw] flex-col overflow-hidden rounded-3xl border border-border bg-background/95 shadow-2xl backdrop-blur">
+      <div className="border-b border-border/70 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              JSON Renderer
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              Live preview of the current tree
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col overflow-hidden p-3">
+        <div className="flex-1 overflow-auto rounded-2xl border border-border/80 bg-muted/30 p-4">
+          {tree ? (
+            <MemoryRouter>
+              <DataProvider>
+                <VisibilityProvider>
+                  <ActionProvider>
+                    <Renderer tree={tree} registry={registry} loading={isStreaming} />
+                  </ActionProvider>
+                </VisibilityProvider>
+              </DataProvider>
+            </MemoryRouter>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center text-center text-xs text-muted-foreground">
+              <Sparkles className="mb-2 h-6 w-6 text-muted-foreground/60" />
+              <p>No tree loaded yet</p>
+              <p className="text-[9px] text-muted-foreground/80">
+                Generate UI from the prompt to preview it here.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

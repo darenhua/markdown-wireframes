@@ -1,192 +1,78 @@
 {
-  "root": "contact-form-card",
+  "root": "dashboard-root",
   "elements": {
-    "contact-form-card": {
-      "key": "contact-form-card",
+    "dashboard-root": {
+      "key": "dashboard-root",
       "type": "Card",
       "props": {
-        "title": "Contact Us",
-        "description": "Send us a message and we'll get back to you soon.",
-        "style": {
-          "background": "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)"
-        }
+        "title": "Metrics Dashboard",
+        "description": "Key performance indicators and growth statistics"
       },
       "children": [
-        "title-stack",
-        "main-stack"
+        "dashboard-container"
       ]
     },
-    "form-stack": {
-      "key": "form-stack",
-      "type": "Stack",
-      "props": {
-        "direction": "vertical",
-        "gap": "md"
-      },
-      "children": [
-        "name-input",
-        "email-input",
-        "message-textarea",
-        "button-stack"
-      ]
-    },
-    "name-input": {
-      "key": "name-input",
-      "type": "Input",
-      "props": {
-        "label": "Name",
-        "placeholder": "Your full name",
-        "type": "text"
-      }
-    },
-    "email-input": {
-      "key": "email-input",
-      "type": "Input",
-      "props": {
-        "label": "Email",
-        "placeholder": "your@email.com",
-        "type": "email"
-      }
-    },
-    "message-textarea": {
-      "key": "message-textarea",
-      "type": "Textarea",
-      "props": {
-        "label": "Message",
-        "placeholder": "Tell us what's on your mind...",
-        "rows": 5
-      }
-    },
-    "button-stack": {
-      "key": "button-stack",
-      "type": "Stack",
-      "props": {
-        "direction": "horizontal",
-        "gap": "sm"
-      },
-      "children": [
-        "submit-btn",
-        "cancel-btn",
-        "secondary-btn"
-      ]
-    },
-    "submit-btn": {
-      "key": "submit-btn",
-      "type": "Button",
-      "props": {
-        "label": "Send Message",
-        "variant": "default",
-        "linkTo": "/send-message-place"
-      }
-    },
-    "cancel-btn": {
-      "key": "cancel-btn",
-      "type": "Button",
-      "props": {
-        "label": "Cancel",
-        "variant": "outline"
-      }
-    },
-    "main-stack": {
-      "key": "main-stack",
+    "dashboard-container": {
+      "key": "dashboard-container",
       "type": "Stack",
       "props": {
         "direction": "vertical",
         "gap": "lg"
       },
       "children": [
-        "form-stack",
-        "separator",
-        "feedback-form-stack"
+        "stats-grid",
+        "growth-section"
       ]
     },
-    "separator": {
-      "key": "separator",
-      "type": "Separator",
+    "stats-grid": {
+      "key": "stats-grid",
+      "type": "Grid",
       "props": {
-        "orientation": "horizontal"
-      }
-    },
-    "feedback-form-stack": {
-      "key": "feedback-form-stack",
-      "type": "Stack",
-      "props": {
-        "direction": "vertical",
+        "columns": 3,
         "gap": "md"
       },
       "children": [
-        "feedback-heading",
-        "feedback-name-input",
-        "feedback-email-input",
-        "feedback-message-textarea",
-        "feedback-button-stack"
+        "revenue-metric",
+        "users-metric",
+        "conversion-metric"
       ]
     },
-    "feedback-heading": {
-      "key": "feedback-heading",
-      "type": "Heading",
+    "revenue-metric": {
+      "key": "revenue-metric",
+      "type": "Box",
       "props": {
-        "text": "Feedback Form",
-        "level": "3"
-      }
-    },
-    "feedback-name-input": {
-      "key": "feedback-name-input",
-      "type": "Input",
-      "props": {
-        "label": "Name",
-        "placeholder": "Your full name",
-        "type": "text"
-      }
-    },
-    "feedback-email-input": {
-      "key": "feedback-email-input",
-      "type": "Input",
-      "props": {
-        "label": "Email",
-        "placeholder": "your@email.com",
-        "type": "email"
-      }
-    },
-    "feedback-message-textarea": {
-      "key": "feedback-message-textarea",
-      "type": "Textarea",
-      "props": {
-        "label": "Feedback",
-        "placeholder": "Share your feedback...",
-        "rows": 4
-      }
-    },
-    "feedback-button-stack": {
-      "key": "feedback-button-stack",
-      "type": "Stack",
-      "props": {
-        "direction": "horizontal",
-        "gap": "sm"
+        "padding": "md",
+        "rounded": "md",
+        "border": true,
+        "shadow": "sm"
       },
       "children": [
-        "feedback-submit-btn",
-        "feedback-cancel-btn"
+        "revenue-label",
+        "revenue-value",
+        "revenue-change"
       ]
     },
-    "feedback-submit-btn": {
-      "key": "feedback-submit-btn",
-      "type": "Button",
+    "revenue-label": {
+      "key": "revenue-label",
+      "type": "Text",
       "props": {
-        "label": "Submit Feedback",
-        "variant": "default"
-      }
+        "text": "Total Revenue",
+        "variant": "muted",
+        "size": "sm"
+      },
+      "children": []
     },
-    "feedback-cancel-btn": {
-      "key": "feedback-cancel-btn",
-      "type": "Button",
+    "revenue-value": {
+      "key": "revenue-value",
+      "type": "Heading",
       "props": {
-        "label": "Cancel",
-        "variant": "outline"
-      }
+        "text": "$124,580",
+        "level": "2"
+      },
+      "children": []
     },
-    "title-stack": {
-      "key": "title-stack",
+    "revenue-change": {
+      "key": "revenue-change",
       "type": "Stack",
       "props": {
         "direction": "horizontal",
@@ -194,33 +80,279 @@
         "align": "center"
       },
       "children": [
-        "heart-icon",
-        "title-text"
+        "revenue-trend-icon",
+        "revenue-trend-text"
       ]
     },
-    "heart-icon": {
-      "key": "heart-icon",
+    "revenue-trend-icon": {
+      "key": "revenue-trend-icon",
       "type": "Icon",
       "props": {
-        "name": "heart",
-        "size": "md"
-      }
+        "name": "arrow-right",
+        "size": "sm"
+      },
+      "children": []
     },
-    "title-text": {
-      "key": "title-text",
+    "revenue-trend-text": {
+      "key": "revenue-trend-text",
+      "type": "Text",
+      "props": {
+        "text": "+12.5% from last month",
+        "variant": "success",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "users-metric": {
+      "key": "users-metric",
+      "type": "Box",
+      "props": {
+        "padding": "md",
+        "rounded": "md",
+        "border": true,
+        "shadow": "sm"
+      },
+      "children": [
+        "users-label",
+        "users-value",
+        "users-change"
+      ]
+    },
+    "users-label": {
+      "key": "users-label",
+      "type": "Text",
+      "props": {
+        "text": "Active Users",
+        "variant": "muted",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "users-value": {
+      "key": "users-value",
       "type": "Heading",
       "props": {
-        "text": "Contact Us",
+        "text": "8,234",
         "level": "2"
-      }
+      },
+      "children": []
     },
-    "secondary-btn": {
-      "key": "secondary-btn",
-      "type": "Button",
+    "users-change": {
+      "key": "users-change",
+      "type": "Stack",
       "props": {
-        "label": "Save Draft",
-        "variant": "outline"
-      }
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center"
+      },
+      "children": [
+        "users-trend-icon",
+        "users-trend-text"
+      ]
+    },
+    "users-trend-icon": {
+      "key": "users-trend-icon",
+      "type": "Icon",
+      "props": {
+        "name": "arrow-right",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "users-trend-text": {
+      "key": "users-trend-text",
+      "type": "Text",
+      "props": {
+        "text": "+8.2% from last month",
+        "variant": "success",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "conversion-metric": {
+      "key": "conversion-metric",
+      "type": "Box",
+      "props": {
+        "padding": "md",
+        "rounded": "md",
+        "border": true,
+        "shadow": "sm"
+      },
+      "children": [
+        "conversion-label",
+        "conversion-value",
+        "conversion-change"
+      ]
+    },
+    "conversion-label": {
+      "key": "conversion-label",
+      "type": "Text",
+      "props": {
+        "text": "Conversion Rate",
+        "variant": "muted",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "conversion-value": {
+      "key": "conversion-value",
+      "type": "Heading",
+      "props": {
+        "text": "3.24%",
+        "level": "2"
+      },
+      "children": []
+    },
+    "conversion-change": {
+      "key": "conversion-change",
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm",
+        "align": "center"
+      },
+      "children": [
+        "conversion-trend-icon",
+        "conversion-trend-text"
+      ]
+    },
+    "conversion-trend-icon": {
+      "key": "conversion-trend-icon",
+      "type": "Icon",
+      "props": {
+        "name": "arrow-left",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "conversion-trend-text": {
+      "key": "conversion-trend-text",
+      "type": "Text",
+      "props": {
+        "text": "-2.1% from last month",
+        "variant": "error",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "growth-section": {
+      "key": "growth-section",
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "md"
+      },
+      "children": [
+        "growth-header",
+        "growth-metrics-grid"
+      ]
+    },
+    "growth-header": {
+      "key": "growth-header",
+      "type": "Heading",
+      "props": {
+        "text": "Growth Metrics",
+        "level": "3"
+      },
+      "children": []
+    },
+    "growth-metrics-grid": {
+      "key": "growth-metrics-grid",
+      "type": "Grid",
+      "props": {
+        "columns": 2,
+        "gap": "md"
+      },
+      "children": [
+        "mrr-metric",
+        "churn-metric"
+      ]
+    },
+    "mrr-metric": {
+      "key": "mrr-metric",
+      "type": "Box",
+      "props": {
+        "padding": "md",
+        "rounded": "md",
+        "border": true,
+        "shadow": "sm"
+      },
+      "children": [
+        "mrr-label",
+        "mrr-value",
+        "mrr-badge"
+      ]
+    },
+    "mrr-label": {
+      "key": "mrr-label",
+      "type": "Text",
+      "props": {
+        "text": "Monthly Recurring Revenue",
+        "variant": "muted",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "mrr-value": {
+      "key": "mrr-value",
+      "type": "Heading",
+      "props": {
+        "text": "$42,150",
+        "level": "2"
+      },
+      "children": []
+    },
+    "mrr-badge": {
+      "key": "mrr-badge",
+      "type": "Badge",
+      "props": {
+        "text": "Growing",
+        "variant": "default"
+      },
+      "children": []
+    },
+    "churn-metric": {
+      "key": "churn-metric",
+      "type": "Box",
+      "props": {
+        "padding": "md",
+        "rounded": "md",
+        "border": true,
+        "shadow": "sm"
+      },
+      "children": [
+        "churn-label",
+        "churn-value",
+        "churn-badge"
+      ]
+    },
+    "churn-label": {
+      "key": "churn-label",
+      "type": "Text",
+      "props": {
+        "text": "Churn Rate",
+        "variant": "muted",
+        "size": "sm"
+      },
+      "children": []
+    },
+    "churn-value": {
+      "key": "churn-value",
+      "type": "Heading",
+      "props": {
+        "text": "2.15%",
+        "level": "2"
+      },
+      "children": []
+    },
+    "churn-badge": {
+      "key": "churn-badge",
+      "type": "Badge",
+      "props": {
+        "text": "Stable",
+        "variant": "secondary"
+      },
+      "children": []
     }
   }
 }

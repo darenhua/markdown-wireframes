@@ -1,53 +1,5 @@
 "use client";
 
-interface SpeechRecognitionResultItem {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionResult {
-  [index: number]: SpeechRecognitionResultItem;
-  length: number;
-  isFinal: boolean;
-}
-
-interface SpeechRecognitionResultList {
-  [index: number]: SpeechRecognitionResult;
-  length: number;
-}
-
-interface SpeechRecognitionEventLocal extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEventLocal extends Event {
-  error: string;
-  message: string;
-}
-
-interface SpeechRecognitionLocal {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  onresult: ((event: SpeechRecognitionEventLocal) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLocal) => void) | null;
-  onend: (() => void) | null;
-}
-
-interface SpeechRecognitionConstructor {
-  new(): SpeechRecognitionLocal;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
-
 import React, {
   useState,
   useCallback,
@@ -56,7 +8,7 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import { createMemoryRouter, RouterProvider, MemoryRouter } from "react-router-dom";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import dynamic from "next/dynamic";
 import {
   MousePointer2,
@@ -79,10 +31,6 @@ import { NotebookPanel } from "./components/NotebookPanel";
 import { createInitialContext, type SelectorInfo } from "./spec-actions";
 import { ChatSidebar } from "./ChatSidebar";
 import type { UITree } from "@json-render/core";
-import { Renderer, DataProvider, VisibilityProvider, ActionProvider } from "@json-render/react";
-import { registry } from "../try-jsonrender/registry";
-import { saveTreeJson } from "./actions";
-import { cn } from "@/lib/utils";
 
 // ============ TYPES ============
 interface SelectedComponent {
@@ -306,56 +254,6 @@ const panelNames: Record<ActivePanel, string> = {
   notes: "Notes",
 };
 
-type GenerationMode = "standard" | "ensemble";
-type PreviewSource = "merged" | "A" | "B" | "C";
-type SpeechState = "idle" | "recording" | "processing" | "speaking";
-
-async function textToSpeech(text: string): Promise<void> {
-  const response = await fetch("/api/elevenlabs/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to generate speech");
-  }
-
-  const audioBlob = await response.blob();
-  const audioUrl = URL.createObjectURL(audioBlob);
-  const audio = new Audio(audioUrl);
-
-  return new Promise((resolve, reject) => {
-    audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      resolve();
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(audioUrl);
-      reject(new Error("Audio playback failed"));
-    };
-    audio.play();
-  });
-}
-
-type EnsembleMetadata = {
-  evaluatorVariant: string;
-  timing: {
-    generatorsMs: number;
-    evaluatorMs: number;
-    totalMs: number;
-  };
-  generators: {
-    A: { model: string; outputLength: number; usage: unknown };
-    B: { model: string; outputLength: number; usage: unknown };
-    C: { model: string; outputLength: number; usage: unknown };
-  };
-  evaluator: {
-    model: string;
-    usage: unknown;
-  };
-};
-
 // ============ MAIN PAGE COMPONENT ============
 function FloatingBarWithRouter() {
   const [activePanel, setActivePanel] = useState<ActivePanel>("pointer");
@@ -369,234 +267,16 @@ function FloatingBarWithRouter() {
   const [isCreatingPage, setIsCreatingPage] = useState(false);
   const currentFolderRef = useRef<string>("");
 
-  const [speechState, setSpeechState] = useState<SpeechState>("idle");
-  const speechRecognitionRef = useRef<SpeechRecognitionLocal | null>(null);
-  const isVKeyHeldRef = useRef(false);
-  const transcribedTextRef = useRef("");
-  const sendMessageRef = useRef<((text: string) => Promise<void>) | null>(null);
-  const handleSendMessageReady = useCallback(
-    (sendFn: (text: string) => Promise<void>) => {
-      sendMessageRef.current = sendFn;
-    },
-    []
-  );
-
   // Notebook spec state
   const [specElementKey, setSpecElementKey] = useState<string | null>(null);
   const [specContext, setSpecContext] = useState<string>("");
   const [showElementSwitchConfirm, setShowElementSwitchConfirm] = useState(false);
   const [pendingElementKey, setPendingElementKey] = useState<string | null>(null);
 
-  // Chat/Ensemble state from sidebar (using compatible type)
-  type LocalUITree = {
-    root: string | null;
-    elements: Record<string, unknown>;
-  };
-
-  const [chatTree, setChatTree] = useState<LocalUITree | null>(null);
-  const [ensembleTrees, setEnsembleTrees] = useState<{
-    merged: LocalUITree;
-    A: LocalUITree;
-    B: LocalUITree;
-    C: LocalUITree;
-  }>({
-    merged: { root: null, elements: {} },
-    A: { root: null, elements: {} },
-    B: { root: null, elements: {} },
-    C: { root: null, elements: {} },
-  });
-  const [generationMode, setGenerationMode] = useState<GenerationMode>("standard");
-  const [ensembleMetadata, setEnsembleMetadata] = useState<EnsembleMetadata | null>(null);
-
-  // Initialize preview source from URL or default
-  const [previewSource, setPreviewSource] = useState<PreviewSource>(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const preview = params.get("preview") as PreviewSource | null;
-      if (preview && ["merged", "A", "B", "C"].includes(preview)) {
-        return preview;
-      }
-    }
-    return "merged";
-  });
-
-  // Initialize current page from URL query params or localStorage
-  const [currentPage, setCurrentPage] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const pageParam = params.get("page");
-      if (pageParam) return pageParam;
-      return localStorage.getItem("specstack-current-page") || "";
-    }
-    return "";
-  });
-
-  const { isEnabled, toggle, selectedComponent, selectComponent } = useInspector();
+  const { isEnabled, toggle, enable, selectedComponent, selectComponent } = useInspector();
 
   // Get current page name
   const currentPageName = currentFolderRef.current || currentRoutePath.replace(/^\//, "") || routes[0]?.path.replace(/^\//, "") || "";
-
-  // Update URL and localStorage when current page changes
-  const updateCurrentPage = useCallback((pageName: string) => {
-    setCurrentPage(pageName);
-    currentFolderRef.current = pageName;
-
-    if (typeof window !== "undefined") {
-      // Update localStorage
-      localStorage.setItem("specstack-current-page", pageName);
-
-      // Update URL query param
-      const url = new URL(window.location.href);
-      url.searchParams.set("page", pageName);
-      window.history.replaceState({}, "", url.toString());
-
-      console.log(`📄 Current page set to: ${pageName}`);
-    }
-  }, []);
-
-  // Update URL when preview source changes
-  const updatePreviewSource = useCallback((source: PreviewSource) => {
-    setPreviewSource(source);
-    // Update URL query param
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.set("preview", source);
-      window.history.replaceState({}, "", url.toString());
-    }
-  }, []);
-
-  // Manual save handler for ensemble mode (Enter key)
-  const handleManualSave = useCallback(async () => {
-    // Use currentPage state instead of ref
-    const folderName = currentPage || currentFolderRef.current;
-    if (!folderName) {
-      console.warn("⚠️ No folder selected for save. Create a page first!");
-      return;
-    }
-
-    let treeToSave: LocalUITree | null = null;
-
-    if (generationMode === "ensemble") {
-      treeToSave = ensembleTrees[previewSource];
-      console.log(`💾 Saving ${previewSource} tree to outputs/${folderName}/`);
-    } else if (chatTree) {
-      treeToSave = chatTree;
-      console.log(`💾 Saving tree to outputs/${folderName}/`);
-    }
-
-    if (treeToSave && treeToSave.root) {
-      try {
-        const result = await saveTreeJson(treeToSave as UITree, folderName);
-        if (result.success) {
-          console.log("✅ Saved tree.json:", result.message);
-          // Reload the tree to reflect the saved version
-          const loadedTree = await loadTreeJson(folderName);
-          if (loadedTree) {
-            setLoadedTreeJson(loadedTree);
-            setChatTree(loadedTree as LocalUITree);
-
-            // Exit ensemble mode and show single saved tree
-            if (generationMode === "ensemble") {
-              setGenerationMode("standard");
-              setEnsembleTrees({
-                merged: { root: null, elements: {} },
-                A: { root: null, elements: {} },
-                B: { root: null, elements: {} },
-                C: { root: null, elements: {} },
-              });
-              console.log("📄 Exited merge mode, showing saved tree");
-            }
-          }
-        } else {
-          console.error("❌ Failed to save tree.json:", result.message);
-        }
-      } catch (err) {
-        console.error("❌ Error saving tree.json:", err);
-      }
-    }
-  }, [chatTree, ensembleTrees, generationMode, previewSource, currentPage]);
-
-  const initSpeechRecognition = useCallback((): SpeechRecognitionLocal | null => {
-    if (typeof window === "undefined") return null;
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognitionCtor) {
-      console.warn("Speech recognition not supported");
-      return null;
-    }
-
-    const recognition = new SpeechRecognitionCtor();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event: SpeechRecognitionEventLocal) => {
-      const parts: string[] = [];
-      for (let i = 0; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        if (result && result[0]) {
-          parts.push(result[0].transcript);
-        }
-      }
-      const transcript = parts.join("");
-      transcribedTextRef.current = transcript;
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEventLocal) => {
-      console.error("Speech recognition error:", event.error);
-      setSpeechState("idle");
-    };
-
-    recognition.onend = () => {
-      speechRecognitionRef.current = null;
-    };
-
-    return recognition;
-  }, []);
-
-  const startRecording = useCallback(() => {
-    const recognition = initSpeechRecognition();
-    if (!recognition) return;
-    speechRecognitionRef.current = recognition;
-    transcribedTextRef.current = "";
-    setSpeechState("recording");
-    recognition.start();
-  }, [initSpeechRecognition]);
-
-  const stopRecording = useCallback(() => {
-    if (speechRecognitionRef.current) {
-      speechRecognitionRef.current.stop();
-      speechRecognitionRef.current = null;
-    }
-  }, []);
-
-  const processVoiceInput = useCallback(async (text: string) => {
-    if (!text.trim()) {
-      setSpeechState("idle");
-      return;
-    }
-
-    setSpeechState("processing");
-    try {
-      if (sendMessageRef.current) {
-        await sendMessageRef.current(text);
-      } else {
-        console.warn("Voice prompt received before chat sidebar was ready");
-      }
-    } catch (error) {
-      console.error("Failed to send voice prompt:", error);
-    }
-
-    transcribedTextRef.current = "";
-
-    try {
-      setSpeechState("speaking");
-      await textToSpeech("Got it. Sending your prompt to the chat.");
-    } catch (error) {
-      console.error("TTS error:", error);
-    } finally {
-      setSpeechState("idle");
-    }
-  }, []);
 
   // Hotkey handlers
   useEffect(() => {
@@ -616,71 +296,20 @@ function FloatingBarWithRouter() {
         return;
       }
 
-      // Enter key to save in ensemble mode
-      if (e.key === "Enter" && generationMode === "ensemble") {
-        e.preventDefault();
-        handleManualSave();
-        return;
-      }
-
-      if (e.key === "x" || e.key === "X") {
-        setActivePanel("pointer");
-        return;
-      }
-
-      if (e.key === "v" || e.key === "V") {
-        e.preventDefault();
-        if (!isVKeyHeldRef.current && speechState === "idle") {
-          isVKeyHeldRef.current = true;
-          startRecording();
-        }
-        return;
-      }
-
       if (e.key === "c" || e.key === "C") {
         toggle();
       }
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "v" || e.key === "V") {
-        if (isVKeyHeldRef.current) {
-          isVKeyHeldRef.current = false;
-          stopRecording();
-          setTimeout(() => {
-            processVoiceInput(transcribedTextRef.current);
-          }, 150);
-        }
-      }
-    };
-
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      stopRecording();
-    };
-  }, [
-    toggle,
-    selectedComponent,
-    generationMode,
-    handleManualSave,
-    startRecording,
-    stopRecording,
-    processVoiceInput,
-    speechState,
-  ]);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toggle, enable, selectedComponent, activePanel]);
 
-  // Fetch routes on mount and load the current page's tree
+  // Fetch routes on mount
   useEffect(() => {
-    let isMounted = true;
-    
     async function loadRoutes() {
       try {
         const configs = await getOutputRouteConfigs();
-        if (!isMounted) return;
-        
         setRoutes(configs);
 
         if (configs.length > 0) {
@@ -708,53 +337,15 @@ function FloatingBarWithRouter() {
             initialIndex: 0,
           });
 
-          if (!isMounted) return;
           setRouter(newRouter);
-
-          // Determine which page to load: query param > localStorage > first page
-          let pageToLoad = currentPage;
-          if (!pageToLoad && typeof window !== "undefined") {
-            pageToLoad = localStorage.getItem("specstack-current-page") || "";
-          }
-          if (!pageToLoad) {
-            pageToLoad = configs[0].path.replace(/^\//, "");
-          }
-
-          // Verify the page exists in configs
-          const pageExists = configs.some(c => c.path.replace(/^\//, "") === pageToLoad);
-          if (!pageExists) {
-            pageToLoad = configs[0].path.replace(/^\//, "");
-          }
-
-          // Set as current page
-          updateCurrentPage(pageToLoad);
-
-          // Load the tree.json for this page
-          try {
-            const treeData = await loadTreeJson(pageToLoad);
-            if (isMounted && treeData && treeData.root) {
-              setChatTree(treeData as LocalUITree);
-              console.log(`📂 Loaded saved tree from outputs/${pageToLoad}/tree.json`);
-            }
-          } catch {
-            console.log(`No saved tree found for ${pageToLoad}`);
-          }
         }
       } catch (error) {
         console.error("Failed to load output routes:", error);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     }
-    
     loadRoutes();
-    
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Subscribe to router location changes
@@ -857,11 +448,6 @@ function FloatingBarWithRouter() {
       return;
     }
 
-    if (activePanel !== "notes") {
-      contextCreatedForRef.current = null;
-      return;
-    }
-
     const selectionKey = `${selectedComponent.tagName}-${selectedComponent.textContent?.slice(0, 30)}`;
     if (contextCreatedForRef.current === selectionKey) return;
 
@@ -889,6 +475,9 @@ function FloatingBarWithRouter() {
     createInitialContext(folderName, elementKey, selectors).then((result) => {
       if (result.success) {
         setSpecElementKey(elementKey);
+        if (activePanel !== "notes") {
+          setActivePanel("notes");
+        }
       }
     });
   }, [selectedComponent, currentRoutePath, loadedTreeJson, findElementKeyFromSelection, activePanel]);
@@ -963,10 +552,8 @@ function FloatingBarWithRouter() {
           setRouter(newRouter);
         }
 
-        // Update current page to the newly created page
-        updateCurrentPage(result.folderName);
+        currentFolderRef.current = result.folderName;
         setLoadedTreeJson(null);
-        setChatTree(null);
         selectComponent(null);
         setShowNewPageModal(false);
         setNewPageName("");
@@ -976,51 +563,30 @@ function FloatingBarWithRouter() {
     } finally {
       setIsCreatingPage(false);
     }
-  }, [selectedComponent, selectComponent, updateCurrentPage]);
-
-  const getAuraStyles = useCallback(() => {
-    switch (speechState) {
-      case "recording":
-        return "shadow-[0_0_30px_10px_rgba(200,160,100,0.6),0_0_60px_20px_rgba(200,160,100,0.35),0_0_90px_30px_rgba(200,160,100,0.15)]";
-      case "processing":
-        return "shadow-[0_0_15px_5px_rgba(180,110,110,0.5),0_0_30px_10px_rgba(180,110,110,0.25)]";
-      case "speaking":
-        return "shadow-[0_0_15px_5px_rgba(120,160,130,0.5),0_0_30px_10px_rgba(120,160,130,0.25)]";
-      default:
-        return "";
-    }
-  }, [speechState]);
+  }, [selectedComponent, selectComponent]);
 
   return (
     <div className="relative h-screen p-4 pb-8">
       <div className="flex h-full w-full gap-4">
         <div className="h-full w-[42%] min-w-[320px] max-w-[460px]">
-          <ChatSidebar
-            onTreeUpdate={setChatTree}
-            onEnsembleTreesUpdate={setEnsembleTrees}
-            onGenerationModeChange={setGenerationMode}
-            onEnsembleMetadataUpdate={setEnsembleMetadata}
-            onSendMessageReady={handleSendMessageReady}
-          />
+          <ChatSidebar />
         </div>
 
         <div className="relative flex-1">
-          {/* Fixed title and current page indicator */}
+          {/* Fixed title */}
           <div className="fixed bottom-8 right-8 z-50">
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
-                  SpecStack
-                </span>
-                <a
-                  href="https://turing.leanmcp.app/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11px] text-white/70 hover:text-white underline drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
-                >
-                  turing
-                </a>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                SpecStack
+              </span>
+              <a
+                href="https://turing.leanmcp.app/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-white/70 hover:text-white underline drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
+              >
+                turing
+              </a>
             </div>
           </div>
 
@@ -1028,85 +594,6 @@ function FloatingBarWithRouter() {
           <div className="flex h-full w-full items-center justify-center overflow-auto rounded-lg bg-muted-foreground">
             {isLoading ? (
               <div className="size-8 animate-spin rounded-full border-2 border-background/30 border-t-background" />
-            ) : generationMode === "ensemble" && (ensembleTrees.merged.root || ensembleTrees.A.root || ensembleTrees.B.root || ensembleTrees.C.root) ? (
-              // Multi-panel ensemble view - 2x2 grid
-              <div className="grid grid-cols-2 grid-rows-2 h-full w-full gap-2 p-2">
-                {(["merged", "A", "B", "C"] as const).map((source) => {
-                  const tree = ensembleTrees[source];
-                  const hasContent = tree.root !== null;
-                  const isActive = previewSource === source;
-                  const label = source === "merged"
-                    ? "✨ Merged"
-                    : ensembleMetadata?.generators[source]?.model?.split("-")[0] || source;
-
-                  return (
-                    <div
-                      key={source}
-                      className={cn(
-                        "rounded-lg border-2 transition-all overflow-hidden flex flex-col cursor-pointer",
-                        isActive
-                          ? source === "merged"
-                            ? "border-emerald-500 shadow-lg shadow-emerald-500/20"
-                            : "border-primary shadow-lg shadow-primary/20"
-                          : "border-border/50 opacity-70 hover:opacity-100"
-                      )}
-                      onClick={() => updatePreviewSource(source)}
-                    >
-                      <div className={cn(
-                        "px-3 py-1.5 text-xs font-medium border-b flex items-center justify-between",
-                        isActive
-                          ? source === "merged"
-                            ? "bg-emerald-500 text-white"
-                            : "bg-primary text-primary-foreground"
-                          : "bg-muted/50 text-muted-foreground"
-                      )}>
-                        <span>{label}</span>
-                        {isActive && (
-                          <span className="text-[10px] opacity-70">Press Enter to save</span>
-                        )}
-                      </div>
-                      <AutoInspector>
-                        <ScrollArea className="flex-1 p-3">
-                          {hasContent ? (
-                            <MemoryRouter>
-                              <DataProvider>
-                                <VisibilityProvider>
-                                  <ActionProvider>
-                                    <div className="space-y-2 scale-90 origin-top-left">
-                                      <Renderer tree={tree as UITree} registry={registry} />
-                                    </div>
-                                  </ActionProvider>
-                                </VisibilityProvider>
-                              </DataProvider>
-                            </MemoryRouter>
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                              No content
-                            </div>
-                          )}
-                        </ScrollArea>
-                      </AutoInspector>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : chatTree && chatTree.root ? (
-              // Single tree view from standard mode
-              <AutoInspector>
-                <ScrollArea className="h-full w-full p-6">
-                  <MemoryRouter>
-                    <DataProvider>
-                      <VisibilityProvider>
-                        <ActionProvider>
-                          <div className="space-y-4">
-                            <Renderer tree={chatTree as UITree} registry={registry} />
-                          </div>
-                        </ActionProvider>
-                      </VisibilityProvider>
-                    </DataProvider>
-                  </MemoryRouter>
-                </ScrollArea>
-              </AutoInspector>
             ) : router ? (
               <AutoInspector>
                 <ScrollArea className="h-full w-full p-6">
@@ -1154,12 +641,7 @@ function FloatingBarWithRouter() {
           )}
 
           {/* Floating bar */}
-          <div
-            className={cn(
-              "absolute -bottom-6 left-1/2 z-40 flex -translate-x-1/2 gap-1 rounded-full border bg-background/95 px-1.5 py-1 shadow-lg backdrop-blur-sm",
-              getAuraStyles()
-            )}
-          >
+          <div className="absolute -bottom-6 left-1/2 z-40 flex -translate-x-1/2 gap-1 rounded-full border bg-background/95 px-1.5 py-1 shadow-lg backdrop-blur-sm">
             <Button
               className="h-8 w-8 rounded-full"
               onClick={() => setActivePanel("pointer")}

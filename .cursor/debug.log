@@ -1,0 +1,23 @@
+{"location":"page.tsx:677","message":"useEffect for loadRoutes triggered","data":{"isLoading":true},"timestamp":1768768033750,"sessionId":"debug-session","hypothesisId":"E"}
+{"location":"page.tsx:680","message":"loadRoutes START","data":{},"timestamp":1768768033758,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"page.tsx:684","message":"getOutputRouteConfigs returned","data":{"configsLength":8},"timestamp":1768768034410,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"page.tsx:677","message":"useEffect for loadRoutes triggered","data":{"isLoading":true},"timestamp":1768768040425,"sessionId":"debug-session","hypothesisId":"E"}
+{"location":"page.tsx:680","message":"loadRoutes START","data":{},"timestamp":1768768040430,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"page.tsx:677","message":"useEffect for loadRoutes triggered","data":{"isLoading":true},"timestamp":1768768040436,"sessionId":"debug-session","hypothesisId":"E"}
+{"location":"page.tsx:680","message":"loadRoutes START","data":{},"timestamp":1768768040439,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"page.tsx:684","message":"getOutputRouteConfigs returned","data":{"configsLength":8},"timestamp":1768768040951,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"page.tsx:718","message":"createMemoryRouter completed","data":{"routesCount":9},"timestamp":1768768040953,"sessionId":"debug-session","hypothesisId":"D"}
+{"location":"page.tsx:684","message":"getOutputRouteConfigs returned","data":{"configsLength":8},"timestamp":1768768041205,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"page.tsx:718","message":"createMemoryRouter completed","data":{"routesCount":9},"timestamp":1768768041206,"sessionId":"debug-session","hypothesisId":"D"}
+{"location":"page.tsx:677","message":"useEffect for loadRoutes triggered","data":{"isLoading":true},"timestamp":1768768050811,"sessionId":"debug-session","hypothesisId":"E"}
+{"location":"page.tsx:680","message":"loadRoutes START","data":{},"timestamp":1768768050820,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"page.tsx:677","message":"useEffect for loadRoutes triggered","data":{"isLoading":true},"timestamp":1768768050836,"sessionId":"debug-session","hypothesisId":"E"}
+{"location":"page.tsx:680","message":"loadRoutes START","data":{},"timestamp":1768768050838,"sessionId":"debug-session","hypothesisId":"A"}
+{"location":"page.tsx:684","message":"getOutputRouteConfigs returned","data":{"configsLength":8},"timestamp":1768768051431,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"page.tsx:718","message":"createMemoryRouter completed","data":{"routesCount":9},"timestamp":1768768051432,"sessionId":"debug-session","hypothesisId":"D"}
+{"location":"page.tsx:745","message":"About to call loadTreeJson","data":{"pageToLoad":"DEMO-TRUE"},"timestamp":1768768051436,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"page.tsx:684","message":"getOutputRouteConfigs returned","data":{"configsLength":8},"timestamp":1768768052434,"sessionId":"debug-session","hypothesisId":"B"}
+{"location":"page.tsx:718","message":"createMemoryRouter completed","data":{"routesCount":9},"timestamp":1768768052436,"sessionId":"debug-session","hypothesisId":"D"}
+{"location":"page.tsx:745","message":"About to call loadTreeJson","data":{"pageToLoad":"DEMO-TRUE"},"timestamp":1768768052437,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"page.tsx:754","message":"loadTreeJson completed","data":{"hasTreeData":true,"hasRoot":true},"timestamp":1768768052638,"sessionId":"debug-session","hypothesisId":"C"}
+{"location":"page.tsx:768","message":"loadRoutes FINALLY - setting isLoading false","data":{},"timestamp":1768768052639,"sessionId":"debug-session","hypothesisId":"A"}

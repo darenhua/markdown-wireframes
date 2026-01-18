@@ -1,5 +1,10 @@
 {
   "elements": {
+    "23": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T19:35:02.690Z",
+      "contextPath": "components/comp-4a93c90e0776/context.md"
+    },
     "message-textarea": {
       "hasSpec": true,
       "lastUpdated": "2026-01-18T16:08:10.723Z",
@@ -49,6 +54,46 @@
       "hasSpec": true,
       "lastUpdated": "2026-01-18T18:24:38.972Z",
       "contextPath": "components/comp-556a56bae919/context.md"
+    },
+    "Contact UsSend us a ": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T18:37:30.707Z",
+      "contextPath": "components/comp-a7e0b29e227d/context.md"
+    },
+    "Email": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T18:52:20.351Z",
+      "contextPath": "components/comp-e53650d0aeb5/context.md"
+    },
+    "Get Started": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T19:40:19.848Z",
+      "contextPath": "components/comp-fc327b3e5e43/context.md"
+    },
+    "dashboard-title": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T19:40:23.511Z",
+      "contextPath": "components/comp-d8bbffb3f045/context.md"
+    },
+    "main-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T19:58:02.918Z",
+      "contextPath": "components/comp-68a46c7889c8/context.md"
+    },
+    "revenue-metric": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T19:58:04.600Z",
+      "contextPath": "components/comp-9e035dbcb477/context.md"
+    },
+    "greeting-text": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T20:14:09.577Z",
+      "contextPath": "components/comp-bceef7938456/context.md"
+    },
+    "dashboard-root": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T20:52:42.847Z",
+      "contextPath": "components/comp-5239a2aad7ce/context.md"
     }
   }
 }
