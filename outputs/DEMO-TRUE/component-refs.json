@@ -1,0 +1,150 @@
+{
+  "components": {
+    "comp-ec9b79e366e6": {
+      "id": "comp-ec9b79e366e6",
+      "selectors": {
+        "tagName": "TEXTAREA",
+        "className": "border-input bg-input/20 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 resize-none rounded-md border px-2 py-2 text-sm transition-colors focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": "",
+        "elementKey": "message-textarea"
+      },
+      "contextPath": "components/comp-ec9b79e366e6/context.md",
+      "createdAt": "2026-01-18T16:08:10.694Z",
+      "lastUpdated": "2026-01-18T16:08:10.694Z"
+    },
+    "comp-b06744bfe25f": {
+      "id": "comp-b06744bfe25f",
+      "selectors": {
+        "tagName": "INPUT",
+        "className": "bg-input/20 dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-7 rounded-md border px-2 py-0.5 text-sm transition-colors file:h-6 file:text-xs/relaxed file:font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed file:text-foreground placeholder:text-muted-foreground w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": "",
+        "elementKey": "contact-form-card"
+      },
+      "contextPath": "components/comp-b06744bfe25f/context.md",
+      "createdAt": "2026-01-18T16:31:30.325Z",
+      "lastUpdated": "2026-01-18T16:31:30.325Z"
+    },
+    "comp-da3ec0fdc314": {
+      "id": "comp-da3ec0fdc314",
+      "selectors": {
+        "tagName": "BUTTON",
+        "className": "focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-md border border-transparent bg-clip-padding font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none group/button select-none bg-primary text-primary-foreground hover:bg-primary/80 h-7 gap-1 px-2 text-xs/relaxed has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        "textContent": "Send Message"
+      },
+      "contextPath": "components/comp-da3ec0fdc314/context.md",
+      "createdAt": "2026-01-18T16:32:27.138Z",
+      "lastUpdated": "2026-01-18T16:32:27.138Z"
+    },
+    "comp-5414f758d930": {
+      "id": "comp-5414f758d930",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "ring-foreground/10 bg-card text-card-foreground gap-4 overflow-hidden rounded-lg py-4 text-xs/relaxed ring-1 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg group/card flex flex-col",
+        "textContent": "Pending Follow-up23↓ -5%"
+      },
+      "contextPath": "components/comp-5414f758d930/context.md",
+      "createdAt": "2026-01-18T16:58:31.903Z",
+      "lastUpdated": "2026-01-18T16:58:31.903Z"
+    },
+    "comp-fd8b1cd82aa3": {
+      "id": "comp-fd8b1cd82aa3",
+      "selectors": {
+        "tagName": "INPUT",
+        "className": "bg-input/20 dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-7 rounded-md border px-2 py-0.5 text-sm transition-colors file:h-6 file:text-xs/relaxed file:font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed file:text-foreground placeholder:text-muted-foreground w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": ""
+      },
+      "contextPath": "components/comp-fd8b1cd82aa3/context.md",
+      "createdAt": "2026-01-18T16:58:45.163Z",
+      "lastUpdated": "2026-01-18T16:58:45.163Z"
+    },
+    "comp-dc6580978abb": {
+      "id": "comp-dc6580978abb",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "text-muted-foreground text-xs/relaxed",
+        "textContent": "Send us a message and we'll get back to you soon."
+      },
+      "contextPath": "components/comp-dc6580978abb/context.md",
+      "createdAt": "2026-01-18T16:58:49.830Z",
+      "lastUpdated": "2026-01-18T16:58:49.830Z"
+    },
+    "comp-acc44365dde9": {
+      "id": "comp-acc44365dde9",
+      "selectors": {
+        "tagName": "TEXTAREA",
+        "className": "border-input bg-input/20 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 resize-none rounded-md border px-2 py-2 text-sm transition-colors focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": ""
+      },
+      "contextPath": "components/comp-acc44365dde9/context.md",
+      "createdAt": "2026-01-18T17:05:20.895Z",
+      "lastUpdated": "2026-01-18T17:05:20.895Z"
+    },
+    "comp-f0885941a1d7": {
+      "id": "comp-f0885941a1d7",
+      "selectors": {
+        "tagName": "TEXTAREA",
+        "className": "border-input bg-input/20 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 resize-none rounded-md border px-2 py-2 text-sm transition-colors focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": ""
+      },
+      "contextPath": "components/comp-f0885941a1d7/context.md",
+      "createdAt": "2026-01-18T17:05:53.295Z",
+      "lastUpdated": "2026-01-18T17:05:53.295Z"
+    },
+    "comp-62265c3e75d8": {
+      "id": "comp-62265c3e75d8",
+      "selectors": {
+        "tagName": "TEXTAREA",
+        "className": "border-input bg-input/20 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 resize-none rounded-md border px-2 py-2 text-sm transition-colors focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": ""
+      },
+      "contextPath": "components/comp-62265c3e75d8/context.md",
+      "createdAt": "2026-01-18T17:06:14.195Z",
+      "lastUpdated": "2026-01-18T17:06:14.195Z"
+    },
+    "comp-27f6797ab706": {
+      "id": "comp-27f6797ab706",
+      "selectors": {
+        "tagName": "TEXTAREA",
+        "className": "border-input bg-input/20 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 resize-none rounded-md border px-2 py-2 text-sm transition-colors focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": ""
+      },
+      "contextPath": "components/comp-27f6797ab706/context.md",
+      "createdAt": "2026-01-18T17:07:01.397Z",
+      "lastUpdated": "2026-01-18T17:07:01.397Z"
+    },
+    "comp-5a6ae8c8e12a": {
+      "id": "comp-5a6ae8c8e12a",
+      "selectors": {
+        "tagName": "TEXTAREA",
+        "className": "border-input bg-input/20 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 resize-none rounded-md border px-2 py-2 text-sm transition-colors focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": ""
+      },
+      "contextPath": "components/comp-5a6ae8c8e12a/context.md",
+      "createdAt": "2026-01-18T17:07:02.244Z",
+      "lastUpdated": "2026-01-18T17:07:02.244Z"
+    },
+    "comp-1aecb3af65bb": {
+      "id": "comp-1aecb3af65bb",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "flex flex-col gap-4 items-stretch",
+        "textContent": "Feedback FormNameEmailFeedbackSubmit FeedbackCancel",
+        "elementKey": "name-input"
+      },
+      "contextPath": "components/comp-1aecb3af65bb/context.md",
+      "createdAt": "2026-01-18T17:11:30.375Z",
+      "lastUpdated": "2026-01-18T17:11:30.375Z"
+    },
+    "comp-7d473390d872": {
+      "id": "comp-7d473390d872",
+      "selectors": {
+        "tagName": "H3",
+        "className": "scroll-m-20 text-2xl font-semibold tracking-tight",
+        "textContent": "Feedback Form"
+      },
+      "contextPath": "components/comp-7d473390d872/context.md",
+      "createdAt": "2026-01-18T17:21:57.307Z",
+      "lastUpdated": "2026-01-18T17:21:57.307Z"
+    }
+  }
+}

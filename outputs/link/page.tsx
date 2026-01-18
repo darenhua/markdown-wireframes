@@ -2,7 +2,7 @@
 
 import { Renderer, DataProvider, VisibilityProvider, ActionProvider } from "@json-render/react";
 import type { UITree } from "@json-render/core";
-import { registry } from "./registry";
+import { registry } from "@/app/atoms/(components)/(starter)/try-jsonrender/registry";
 
 const tree: UITree = {
     "root": "welcome-card",

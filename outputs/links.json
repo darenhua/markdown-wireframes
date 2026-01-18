@@ -1,6 +1,8 @@
 {
   "nodes": [
     "DEMO",
+    "DEMO-TRUE",
+    "NEWDEMOPAGE",
     "a",
     "chartpage",
     "hipage",
@@ -9,6 +11,7 @@
     "linktoanewnumberspage",
     "money",
     "newpage",
+    "send-message-place",
     "test",
     "test-2",
     "testaa",
@@ -32,6 +35,12 @@
       "to": "DEMO",
       "elementKey": "title-text",
       "elementText": "Title"
+    },
+    {
+      "from": "DEMO-TRUE",
+      "to": "send-message-place",
+      "elementKey": "submit-btn",
+      "elementText": "Send Message"
     }
   ]
 }

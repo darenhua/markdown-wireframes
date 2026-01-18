@@ -1,0 +1,85 @@
+{
+  "root": "contact-form-card",
+  "elements": {
+    "contact-form-card": {
+      "key": "contact-form-card",
+      "type": "Card",
+      "props": {
+        "title": "Contact Us",
+        "description": "Send us a message and we'll get back to you soon."
+      },
+      "children": [
+        "form-stack"
+      ]
+    },
+    "form-stack": {
+      "key": "form-stack",
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "md"
+      },
+      "children": [
+        "name-input",
+        "email-input",
+        "message-textarea",
+        "button-stack"
+      ]
+    },
+    "name-input": {
+      "key": "name-input",
+      "type": "Input",
+      "props": {
+        "label": "Name",
+        "placeholder": "Your full name",
+        "type": "text"
+      }
+    },
+    "email-input": {
+      "key": "email-input",
+      "type": "Input",
+      "props": {
+        "label": "Email",
+        "placeholder": "your.email@example.com",
+        "type": "email"
+      }
+    },
+    "message-textarea": {
+      "key": "message-textarea",
+      "type": "Textarea",
+      "props": {
+        "label": "Message",
+        "placeholder": "Tell us what's on your mind...",
+        "rows": 5
+      }
+    },
+    "button-stack": {
+      "key": "button-stack",
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm"
+      },
+      "children": [
+        "submit-btn",
+        "cancel-btn"
+      ]
+    },
+    "submit-btn": {
+      "key": "submit-btn",
+      "type": "Button",
+      "props": {
+        "label": "Send Message",
+        "variant": "default"
+      }
+    },
+    "cancel-btn": {
+      "key": "cancel-btn",
+      "type": "Button",
+      "props": {
+        "label": "Cancel",
+        "variant": "outline"
+      }
+    }
+  }
+}

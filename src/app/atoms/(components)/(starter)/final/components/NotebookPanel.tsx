@@ -1,12 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import { useChat } from "@ai-sdk/react";
+import { useAgentStream, type ChatMessage, type ToolCall } from "../useAgentStream";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Send, FileText, RefreshCw, ChevronLeft } from "lucide-react";
+import {
+  Send,
+  FileText,
+  RefreshCw,
+  ChevronLeft,
+  Wrench,
+  CheckCircle,
+  Loader2,
+  Bot,
+  User,
+  XCircle,
+} from "lucide-react";
 import { readElementContext, type SelectorInfo } from "../spec-actions";
 
 interface UITree {
@@ -29,6 +40,101 @@ interface NotebookPanelProps {
   onContextUpdate: (content: string) => void;
   initialContext?: string;
   onElementKeyChange?: (key: string) => void;
+}
+
+// Tool call display component
+function ToolCallDisplay({ tool }: { tool: ToolCall }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="border rounded p-1.5 bg-muted/30 text-[10px]">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 w-full text-left"
+      >
+        <Wrench className="h-2.5 w-2.5 text-blue-500" />
+        <span className="font-medium truncate">{tool.name}</span>
+        {tool.result !== undefined ? (
+          <CheckCircle className="h-2.5 w-2.5 text-green-500 ml-auto flex-shrink-0" />
+        ) : (
+          <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground ml-auto flex-shrink-0" />
+        )}
+      </button>
+      {expanded && (
+        <div className="mt-1.5 space-y-1">
+          <div>
+            <span className="text-muted-foreground">Input:</span>
+            <pre className="mt-0.5 p-1 bg-background rounded text-[8px] overflow-x-auto">
+              {JSON.stringify(tool.input, null, 2)}
+            </pre>
+          </div>
+          {tool.result && (
+            <div>
+              <span className="text-muted-foreground">Result:</span>
+              <pre className="mt-0.5 p-1 bg-background rounded text-[8px] overflow-x-auto max-h-16 overflow-y-auto">
+                {tool.result.slice(0, 200)}
+                {tool.result.length > 200 ? "..." : ""}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Message display component
+function MessageDisplay({ message }: { message: ChatMessage }) {
+  const isUser = message.role === "user";
+  const isSystem = message.role === "system";
+
+  // Hide system messages that start with [SYSTEM:
+  if (isUser && message.content.startsWith("[SYSTEM:")) {
+    return null;
+  }
+
+  return (
+    <div className={cn("flex gap-1.5", isUser ? "flex-row-reverse" : "flex-row")}>
+      <div
+        className={cn(
+          "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center",
+          isUser ? "bg-primary text-primary-foreground" : "bg-muted",
+          isSystem && "bg-red-100"
+        )}
+      >
+        {isUser ? (
+          <User className="h-2.5 w-2.5" />
+        ) : isSystem ? (
+          <XCircle className="h-2.5 w-2.5 text-red-500" />
+        ) : (
+          <Bot className="h-2.5 w-2.5" />
+        )}
+      </div>
+      <div className={cn("flex-1 space-y-1", isUser ? "text-right" : "text-left")}>
+        {message.content && (
+          <div
+            className={cn(
+              "inline-block rounded-lg px-2 py-1 text-[11px] max-w-[90%]",
+              isUser
+                ? "bg-primary text-primary-foreground"
+                : isSystem
+                ? "bg-red-50 text-red-800 border border-red-200"
+                : "bg-muted"
+            )}
+          >
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          </div>
+        )}
+        {message.toolCalls && message.toolCalls.length > 0 && (
+          <div className="space-y-1 max-w-[90%]">
+            {message.toolCalls.map((tool, idx) => (
+              <ToolCallDisplay key={idx} tool={tool} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function NotebookPanel({
@@ -55,10 +161,10 @@ export function NotebookPanel({
   // Get list of elements for manual selection
   const elementOptions = tree
     ? Object.entries(tree.elements).map(([key, el]) => ({
-      key,
-      type: el.type,
-      label: (el.props?.label || el.props?.text || el.props?.title || key) as string,
-    }))
+        key,
+        type: el.type,
+        label: (el.props?.label || el.props?.text || el.props?.title || key) as string,
+      }))
     : [];
 
   // Handle manual element selection
@@ -71,6 +177,8 @@ export function NotebookPanel({
   const handleBack = () => {
     setSelectedInternalKey(null);
     onElementKeyChange?.("");
+    clear();
+    hasAutoStarted.current = false;
   };
 
   // Build selector info from element
@@ -81,20 +189,6 @@ export function NotebookPanel({
       }
     : undefined;
 
-  // useChat hook with spec-chat API
-  const { messages, sendMessage, status, setMessages } = useChat({
-    api: "/api/spec-chat",
-    body: {
-      pageName,
-      elementKey,
-      treeContext: tree ? JSON.stringify(tree, null, 2) : null,
-      elementContext: element ? JSON.stringify(element, null, 2) : null,
-      selectors,
-    },
-  });
-
-  const isLoading = status === "streaming" || status === "submitted";
-
   // Fetch context from server
   const fetchContext = useCallback(async () => {
     if (!elementKey) return;
@@ -103,26 +197,39 @@ export function NotebookPanel({
     onContextUpdate(content);
   }, [pageName, elementKey, onContextUpdate]);
 
+  // Agent stream hook
+  const {
+    messages,
+    isStreaming,
+    error,
+    currentToolCalls,
+    send,
+    cancel,
+    clear,
+  } = useAgentStream({
+    api: "/api/claude-agent",
+    onError: (err) => console.error("Agent error:", err),
+    onComplete: () => {
+      // Refetch context when agent completes
+      fetchContext();
+    },
+    onToolResult: (toolName, result) => {
+      // Refetch context when Write tool completes
+      if (toolName === "Write" || toolName === "Edit") {
+        fetchContext();
+      }
+    },
+  });
+
   // Reset when element changes
   useEffect(() => {
     if (elementKey !== prevElementKey.current) {
       prevElementKey.current = elementKey;
-      setMessages([]);
+      clear();
       hasAutoStarted.current = false;
       fetchContext();
     }
-  }, [elementKey, setMessages, fetchContext]);
-
-  // Poll for context updates during streaming
-  useEffect(() => {
-    if (status === "streaming") {
-      const interval = setInterval(fetchContext, 1000);
-      return () => clearInterval(interval);
-    }
-    if (status === "ready" && messages.length > 0) {
-      fetchContext();
-    }
-  }, [status, fetchContext, messages.length]);
+  }, [elementKey, clear, fetchContext]);
 
   // AUTO-START: Send initial greeting when element is selected and no messages
   useEffect(() => {
@@ -131,35 +238,65 @@ export function NotebookPanel({
       element &&
       messages.length === 0 &&
       !hasAutoStarted.current &&
-      !isLoading
+      !isStreaming
     ) {
       hasAutoStarted.current = true;
-      // Debug: log what's being sent
       console.log("[NotebookPanel] Auto-start with:", {
         pageName,
         elementKey,
         hasTree: !!tree,
-        treeElements: tree ? Object.keys(tree.elements) : [],
         element,
       });
-      sendMessage({
-        text: `[SYSTEM: User has selected element "${elementKey}" of type "${element.type}". Start the spec conversation by asking about the first missing field in the context file.]`,
-      });
+
+      const systemPrompt = `You are helping the user fill out a component specification for "${elementKey}" (type: ${element.type}).
+The spec file is located at: outputs/${pageName}/components/[component-id]/context.md
+First, read the current context.md file if it exists, then ask the user ONE question at a time to fill in missing sections.
+Keep responses brief and conversational. When the user answers, update the context.md file with their input.`;
+
+      send(
+        `Let's fill out the spec for the "${elementKey}" component. What would you like to know about it first?`,
+        { pageName, elementKey, systemPrompt }
+      );
     }
-  }, [elementKey, element, messages.length, isLoading, sendMessage, pageName, tree]);
+  }, [elementKey, element, messages.length, isStreaming, send, pageName, tree]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, currentToolCalls]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
-    sendMessage({ text: input });
+    if (!input.trim() || isStreaming) return;
+    send(input, { pageName, elementKey: elementKey || undefined });
     setInput("");
+  };
+
+  // Quick action handlers
+  const handleQuickAction = (action: string) => {
+    if (isStreaming) return;
+
+    let prompt = "";
+    switch (action) {
+      case "read":
+        prompt = "Read the current context.md file and show me what's filled in.";
+        break;
+      case "overview":
+        prompt = "Let's focus on the Overview section. Ask me about it.";
+        break;
+      case "purpose":
+        prompt = "Let's fill out the Purpose section. What questions do you have?";
+        break;
+      case "features":
+        prompt = "Let's define the Features. What should this component do?";
+        break;
+    }
+
+    if (prompt) {
+      send(prompt, { pageName, elementKey: elementKey || undefined });
+    }
   };
 
   // No tree loaded
@@ -175,13 +312,13 @@ export function NotebookPanel({
     );
   }
 
-  // Show element selector (max 3 items)
+  // Show element selector
   if (!elementKey && tree && elementOptions.length > 0) {
     return (
       <div className="flex flex-col h-full p-2">
         <p className="text-[10px] text-muted-foreground mb-2">Select component:</p>
         <div className="space-y-1">
-          {elementOptions.slice(0, 3).map((opt) => (
+          {elementOptions.slice(0, 4).map((opt) => (
             <button
               key={opt.key}
               onClick={() => handleElementSelect(opt.key)}
@@ -197,9 +334,9 @@ export function NotebookPanel({
               </div>
             </button>
           ))}
-          {elementOptions.length > 3 && (
+          {elementOptions.length > 4 && (
             <p className="text-[9px] text-muted-foreground/60 px-2">
-              +{elementOptions.length - 3} more
+              +{elementOptions.length - 4} more
             </p>
           )}
         </div>
@@ -207,18 +344,14 @@ export function NotebookPanel({
     );
   }
 
-  // Main chat view - horizontal split (spec on top, chat on bottom)
-  // Using fixed heights with overflow-auto instead of ScrollArea for reliable scrolling
+  // Main chat view
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Spec Preview (top) - fixed height */}
+      {/* Spec Preview (top) */}
       <div className="shrink-0 border-b">
         <div className="px-2 py-1 flex items-center justify-between bg-muted/30">
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleBack}
-              className="p-0.5 hover:bg-muted rounded"
-            >
+            <button onClick={handleBack} className="p-0.5 hover:bg-muted rounded">
               <ChevronLeft className="h-3 w-3 text-muted-foreground" />
             </button>
             <Badge variant="outline" className="text-[8px] px-1 py-0">
@@ -228,18 +361,16 @@ export function NotebookPanel({
               {elementKey}
             </span>
           </div>
-          <button
-            onClick={fetchContext}
-            className="p-0.5 hover:bg-muted rounded"
-          >
+          <button onClick={fetchContext} className="p-0.5 hover:bg-muted rounded">
             <RefreshCw className="h-2.5 w-2.5 text-muted-foreground" />
           </button>
         </div>
-        <div className="h-[80px] overflow-y-auto">
+        <div className="h-[70px] overflow-y-auto">
           <div className="p-2">
             {contextContent ? (
               <pre className="text-[9px] text-muted-foreground whitespace-pre-wrap font-mono leading-tight">
-                {contextContent}
+                {contextContent.slice(0, 400)}
+                {contextContent.length > 400 ? "..." : ""}
               </pre>
             ) : (
               <p className="text-[9px] text-muted-foreground/60 italic">
@@ -250,64 +381,82 @@ export function NotebookPanel({
         </div>
       </div>
 
-      {/* Chat (bottom) - flex to fill remaining space */}
+      {/* Chat (bottom) */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Messages area - scrollable */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto p-2 space-y-2"
-        >
-          {messages.length === 0 && !isLoading ? (
+        {/* Messages area */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 space-y-2">
+          {messages.length === 0 && !isStreaming ? (
             <div className="text-center text-[10px] text-muted-foreground py-2">
-              Starting...
+              Starting conversation...
             </div>
           ) : (
             messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "text-[11px]",
-                  message.role === "user" ? "text-right" : "text-left"
-                )}
-              >
-                {message.parts.map((part, i) =>
-                  part.type === "text" ? (
-                    message.role === "user" &&
-                      part.text.startsWith("[SYSTEM:") ? null : (
-                      <div
-                        key={i}
-                        className={cn(
-                          "inline-block rounded-lg px-2 py-1.5 max-w-[95%] whitespace-pre-wrap",
-                          message.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted/60"
-                        )}
-                      >
-                        {part.text}
-                      </div>
-                    )
-                  ) : part.type === "tool-invocation" ? (
-                    <div
-                      key={i}
-                      className="text-[9px] text-muted-foreground italic"
-                    >
-                      Updating spec...
-                    </div>
-                  ) : null
-                )}
-              </div>
+              <MessageDisplay key={message.id} message={message} />
             ))
           )}
-          {isLoading && messages[messages.length - 1]?.role === "user" && (
-            <div className="flex gap-1 px-2 py-1.5 bg-muted/60 rounded-lg w-fit">
-              <span className="size-1 animate-pulse rounded-full bg-foreground/40" />
-              <span className="size-1 animate-pulse rounded-full bg-foreground/40 [animation-delay:150ms]" />
-              <span className="size-1 animate-pulse rounded-full bg-foreground/40 [animation-delay:300ms]" />
+
+          {/* Current tool calls while streaming */}
+          {isStreaming && currentToolCalls.length > 0 && (
+            <div className="flex gap-1.5">
+              <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-muted">
+                <Bot className="h-2.5 w-2.5" />
+              </div>
+              <div className="flex-1 space-y-1">
+                {currentToolCalls.map((tool, idx) => (
+                  <ToolCallDisplay key={idx} tool={tool} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Loading indicator */}
+          {isStreaming && currentToolCalls.length === 0 && (
+            <div className="flex gap-1.5">
+              <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-muted">
+                <Bot className="h-2.5 w-2.5" />
+              </div>
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-lg">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span className="text-[10px] text-muted-foreground">Thinking...</span>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Input - fixed at bottom */}
+        {/* Quick actions */}
+        <div className="px-2 py-1 border-t flex items-center gap-1 flex-wrap">
+          <span className="text-[9px] text-muted-foreground">Quick:</span>
+          <button
+            onClick={() => handleQuickAction("read")}
+            disabled={isStreaming}
+            className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            Read spec
+          </button>
+          <button
+            onClick={() => handleQuickAction("overview")}
+            disabled={isStreaming}
+            className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => handleQuickAction("purpose")}
+            disabled={isStreaming}
+            className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            Purpose
+          </button>
+          <button
+            onClick={() => handleQuickAction("features")}
+            disabled={isStreaming}
+            className="text-[9px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            Features
+          </button>
+        </div>
+
+        {/* Input */}
         <form onSubmit={handleSubmit} className="p-2 border-t shrink-0">
           <div className="flex gap-1.5">
             <Textarea
@@ -320,21 +469,29 @@ export function NotebookPanel({
                 }
               }}
               placeholder="Answer..."
-              disabled={isLoading}
+              disabled={isStreaming}
               className="min-h-[32px] max-h-[60px] resize-none text-xs"
               rows={1}
             />
-            <Button
-              size="sm"
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="h-8 w-8 p-0"
-            >
-              <Send className="h-3 w-3" />
-            </Button>
+            {isStreaming ? (
+              <Button size="sm" type="button" variant="outline" onClick={cancel} className="h-8 w-8 p-0">
+                <XCircle className="h-3 w-3" />
+              </Button>
+            ) : (
+              <Button size="sm" type="submit" disabled={!input.trim()} className="h-8 w-8 p-0">
+                <Send className="h-3 w-3" />
+              </Button>
+            )}
           </div>
         </form>
       </div>
+
+      {/* Error display */}
+      {error && (
+        <div className="absolute bottom-16 left-2 right-2 p-2 bg-red-50 border border-red-200 rounded text-[10px] text-red-800">
+          {error.message}
+        </div>
+      )}
     </div>
   );
 }

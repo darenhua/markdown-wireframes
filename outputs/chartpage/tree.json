@@ -25,13 +25,18 @@
       "key": "metrics-grid",
       "type": "Grid",
       "props": {
-        "columns": 3,
+        "columns": 4,
         "gap": "md"
       },
       "children": [
         "revenue-card",
         "users-card",
-        "growth-card"
+        "growth-card",
+        "conversion-card",
+        "retention-card",
+        "engagement-card",
+        "churn-card",
+        "roi-card"
       ]
     },
     "revenue-card": {
@@ -91,6 +96,106 @@
         "label": "Month-over-Month",
         "value": "23.5%",
         "change": "+5.1%",
+        "trend": "up"
+      }
+    },
+    "conversion-card": {
+      "key": "conversion-card",
+      "type": "Card",
+      "props": {
+        "title": "Conversion"
+      },
+      "children": [
+        "conversion-metric"
+      ]
+    },
+    "conversion-metric": {
+      "key": "conversion-metric",
+      "type": "Metric",
+      "props": {
+        "label": "Conversion Rate",
+        "value": "3.24%",
+        "change": "+0.8%",
+        "trend": "up"
+      }
+    },
+    "retention-card": {
+      "key": "retention-card",
+      "type": "Card",
+      "props": {
+        "title": "Retention"
+      },
+      "children": [
+        "retention-metric"
+      ]
+    },
+    "retention-metric": {
+      "key": "retention-metric",
+      "type": "Metric",
+      "props": {
+        "label": "30-Day Retention",
+        "value": "67.8%",
+        "change": "-2.3%",
+        "trend": "down"
+      }
+    },
+    "engagement-card": {
+      "key": "engagement-card",
+      "type": "Card",
+      "props": {
+        "title": "Engagement"
+      },
+      "children": [
+        "engagement-metric"
+      ]
+    },
+    "engagement-metric": {
+      "key": "engagement-metric",
+      "type": "Metric",
+      "props": {
+        "label": "Avg Session Time",
+        "value": "4m 32s",
+        "change": "+18.5%",
+        "trend": "up"
+      }
+    },
+    "churn-card": {
+      "key": "churn-card",
+      "type": "Card",
+      "props": {
+        "title": "Churn"
+      },
+      "children": [
+        "churn-metric"
+      ]
+    },
+    "churn-metric": {
+      "key": "churn-metric",
+      "type": "Metric",
+      "props": {
+        "label": "Monthly Churn",
+        "value": "2.1%",
+        "change": "-0.3%",
+        "trend": "up"
+      }
+    },
+    "roi-card": {
+      "key": "roi-card",
+      "type": "Card",
+      "props": {
+        "title": "ROI"
+      },
+      "children": [
+        "roi-metric"
+      ]
+    },
+    "roi-metric": {
+      "key": "roi-metric",
+      "type": "Metric",
+      "props": {
+        "label": "Return on Investment",
+        "value": "340%",
+        "change": "+45%",
         "trend": "up"
       }
     }

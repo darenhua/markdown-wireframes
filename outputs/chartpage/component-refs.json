@@ -23,6 +23,28 @@
       "contextPath": "components/comp-052f82c59e78/context.md",
       "createdAt": "2026-01-18T14:38:09.503Z",
       "lastUpdated": "2026-01-18T14:38:09.503Z"
+    },
+    "comp-97cbb6529631": {
+      "id": "comp-97cbb6529631",
+      "selectors": {
+        "tagName": "P",
+        "className": "text-xs font-medium text-green-600 dark:text-green-400",
+        "textContent": "↑ +5.1%"
+      },
+      "contextPath": "components/comp-97cbb6529631/context.md",
+      "createdAt": "2026-01-18T16:07:29.614Z",
+      "lastUpdated": "2026-01-18T16:07:29.614Z"
+    },
+    "comp-3e6e448cbb70": {
+      "id": "comp-3e6e448cbb70",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "ring-foreground/10 bg-card text-card-foreground gap-4 overflow-hidden rounded-lg py-4 text-xs/relaxed ring-1 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg group/card flex flex-col",
+        "textContent": "ChurnMonthly Churn2.1%↑ -0.3%"
+      },
+      "contextPath": "components/comp-3e6e448cbb70/context.md",
+      "createdAt": "2026-01-18T16:07:40.671Z",
+      "lastUpdated": "2026-01-18T16:07:40.671Z"
     }
   }
 }

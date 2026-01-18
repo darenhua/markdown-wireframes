@@ -1,0 +1,14 @@
+{
+  "elements": {
+    "contact-name-1": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T16:34:52.800Z",
+      "contextPath": "components/comp-584351dce241/context.md"
+    },
+    "metric-pending-content": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T16:35:14.278Z",
+      "contextPath": "components/comp-cf5190ce9543/context.md"
+    }
+  }
+}

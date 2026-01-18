@@ -84,14 +84,47 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Renderer, DataProvider, VisibilityProvider, ActionProvider } from "@json-render/react";
 import type { UITree } from "@json-render/core";
-import type {
-  RouteConfig,
-  InspectedElement,
-  InspectorContextType,
-} from "../router-with-box-model/types";
-import { getOutputRouteConfigs } from "../router-with-box-model/action";
-import { registry } from "../followup-prompts/registry";
-import { useFollowUpStream } from "../followup-prompts/useFollowUpStream";
+// Types inlined (originally from router-with-box-model)
+type RouteConfig = {
+  path: string;
+  name?: string;
+};
+
+type InspectedElement = {
+  id: string;
+  tagName: string;
+  className: string;
+  rect: DOMRect;
+  computedStyle: {
+    margin: string;
+    padding: string;
+    border: string;
+    width: string;
+    height: string;
+  };
+};
+
+type InspectorContextType = {
+  isEnabled: boolean;
+  toggle: () => void;
+  hoveredElement: InspectedElement | null;
+  setHoveredElement: (element: InspectedElement | null) => void;
+};
+
+// Stub for getOutputRouteConfigs - reads from outputs folder
+async function getOutputRouteConfigs(): Promise<RouteConfig[]> {
+  try {
+    const res = await fetch("/api/outputs-routes");
+    if (res.ok) {
+      return res.json();
+    }
+  } catch {
+    // Fallback
+  }
+  return [];
+}
+import { registry } from "../try-jsonrender/registry";
+import { useFollowUpStream } from "./useFollowUpStream";
 import {
   loadTreeJson,
   saveTreeJson,

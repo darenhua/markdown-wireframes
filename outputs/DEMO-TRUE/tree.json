@@ -1,0 +1,184 @@
+{
+  "root": "contact-form-card",
+  "elements": {
+    "contact-form-card": {
+      "key": "contact-form-card",
+      "type": "Card",
+      "props": {
+        "title": "Contact Us",
+        "description": "Send us a message and we'll get back to you soon."
+      },
+      "children": [
+        "main-stack"
+      ]
+    },
+    "form-stack": {
+      "key": "form-stack",
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "md"
+      },
+      "children": [
+        "name-input",
+        "email-input",
+        "message-textarea",
+        "button-stack"
+      ]
+    },
+    "name-input": {
+      "key": "name-input",
+      "type": "Input",
+      "props": {
+        "label": "Name",
+        "placeholder": "Your full name",
+        "type": "text"
+      }
+    },
+    "email-input": {
+      "key": "email-input",
+      "type": "Input",
+      "props": {
+        "label": "Email",
+        "placeholder": "your@email.com",
+        "type": "email"
+      }
+    },
+    "message-textarea": {
+      "key": "message-textarea",
+      "type": "Textarea",
+      "props": {
+        "label": "Message",
+        "placeholder": "Tell us what's on your mind...",
+        "rows": 5
+      }
+    },
+    "button-stack": {
+      "key": "button-stack",
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm"
+      },
+      "children": [
+        "submit-btn",
+        "cancel-btn"
+      ]
+    },
+    "submit-btn": {
+      "key": "submit-btn",
+      "type": "Button",
+      "props": {
+        "label": "Send Message",
+        "variant": "default",
+        "linkTo": "/send-message-place"
+      }
+    },
+    "cancel-btn": {
+      "key": "cancel-btn",
+      "type": "Button",
+      "props": {
+        "label": "Cancel",
+        "variant": "outline"
+      }
+    },
+    "main-stack": {
+      "key": "main-stack",
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "lg"
+      },
+      "children": [
+        "form-stack",
+        "separator",
+        "feedback-form-stack"
+      ]
+    },
+    "separator": {
+      "key": "separator",
+      "type": "Separator",
+      "props": {
+        "orientation": "horizontal"
+      }
+    },
+    "feedback-form-stack": {
+      "key": "feedback-form-stack",
+      "type": "Stack",
+      "props": {
+        "direction": "vertical",
+        "gap": "md"
+      },
+      "children": [
+        "feedback-heading",
+        "feedback-name-input",
+        "feedback-email-input",
+        "feedback-message-textarea",
+        "feedback-button-stack"
+      ]
+    },
+    "feedback-heading": {
+      "key": "feedback-heading",
+      "type": "Heading",
+      "props": {
+        "text": "Feedback Form",
+        "level": "3"
+      }
+    },
+    "feedback-name-input": {
+      "key": "feedback-name-input",
+      "type": "Input",
+      "props": {
+        "label": "Name",
+        "placeholder": "Your full name",
+        "type": "text"
+      }
+    },
+    "feedback-email-input": {
+      "key": "feedback-email-input",
+      "type": "Input",
+      "props": {
+        "label": "Email",
+        "placeholder": "your@email.com",
+        "type": "email"
+      }
+    },
+    "feedback-message-textarea": {
+      "key": "feedback-message-textarea",
+      "type": "Textarea",
+      "props": {
+        "label": "Feedback",
+        "placeholder": "Share your feedback...",
+        "rows": 4
+      }
+    },
+    "feedback-button-stack": {
+      "key": "feedback-button-stack",
+      "type": "Stack",
+      "props": {
+        "direction": "horizontal",
+        "gap": "sm"
+      },
+      "children": [
+        "feedback-submit-btn",
+        "feedback-cancel-btn"
+      ]
+    },
+    "feedback-submit-btn": {
+      "key": "feedback-submit-btn",
+      "type": "Button",
+      "props": {
+        "label": "Submit Feedback",
+        "variant": "default"
+      }
+    },
+    "feedback-cancel-btn": {
+      "key": "feedback-cancel-btn",
+      "type": "Button",
+      "props": {
+        "label": "Cancel",
+        "variant": "outline"
+      }
+    }
+  }
+}

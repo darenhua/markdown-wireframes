@@ -1,0 +1,28 @@
+{
+  "components": {
+    "comp-584351dce241": {
+      "id": "comp-584351dce241",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "flex flex-row gap-4 items-center",
+        "textContent": "Sarah Johnsonsarah.j@example.comResponded",
+        "elementKey": "contact-name-1"
+      },
+      "contextPath": "components/comp-584351dce241/context.md",
+      "createdAt": "2026-01-18T16:34:52.756Z",
+      "lastUpdated": "2026-01-18T16:34:52.756Z"
+    },
+    "comp-cf5190ce9543": {
+      "id": "comp-cf5190ce9543",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "ring-foreground/10 bg-card text-card-foreground gap-4 overflow-hidden rounded-lg py-4 text-xs/relaxed ring-1 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg group/card flex flex-col",
+        "textContent": "Pending Follow-up23↓ -5%",
+        "elementKey": "metric-pending-content"
+      },
+      "contextPath": "components/comp-cf5190ce9543/context.md",
+      "createdAt": "2026-01-18T16:35:14.274Z",
+      "lastUpdated": "2026-01-18T16:35:14.274Z"
+    }
+  }
+}

@@ -1,6 +1,10 @@
 # LeanMCP deployment config (contains project-specific IDs)
 .leanmcp/
 
+# Outputs directory (keep structure, ignore content)
+outputs/*
+!outputs/.gitkeep
+
 # Logs
 logs
 *.log

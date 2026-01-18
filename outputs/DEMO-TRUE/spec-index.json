@@ -1,0 +1,44 @@
+{
+  "elements": {
+    "message-textarea": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T16:08:10.723Z",
+      "contextPath": "components/comp-ec9b79e366e6/context.md"
+    },
+    "contact-form-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T16:31:30.335Z",
+      "contextPath": "components/comp-b06744bfe25f/context.md"
+    },
+    "Send Message": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T16:32:27.153Z",
+      "contextPath": "components/comp-da3ec0fdc314/context.md"
+    },
+    "Pending Follow-up23↓": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T16:58:31.909Z",
+      "contextPath": "components/comp-5414f758d930/context.md"
+    },
+    "selected-element": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T17:07:02.258Z",
+      "contextPath": "components/comp-5a6ae8c8e12a/context.md"
+    },
+    "Send us a message an": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T16:58:49.837Z",
+      "contextPath": "components/comp-dc6580978abb/context.md"
+    },
+    "name-input": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T17:11:31.392Z",
+      "contextPath": "components/comp-1aecb3af65bb/context.md"
+    },
+    "Feedback Form": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-18T17:21:57.353Z",
+      "contextPath": "components/comp-7d473390d872/context.md"
+    }
+  }
+}

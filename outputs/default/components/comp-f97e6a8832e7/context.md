@@ -1,11 +1,13 @@
 # Project Context
 
 ## Requirements
-- Element selected: "secondary-btn"
-- Type: Button
+- Input element named "name-input"
 
-## Conversation Summary
-- User has selected the element "secondary-btn" of type "Button".
+## Preferences
+
+## Decisions
 
 ## Notes
-- Begin gathering more specific requirements and preferences from the user regarding this button.
+
+## Conversation Summary
+- User has selected an input element called "name-input".
