@@ -34,8 +34,8 @@ type UITree = {
 type GenerationMode = "standard" | "ensemble";
 type PreviewSource = "merged" | "A" | "B" | "C";
 
-function parseResponse(text: string): { chat: string; json: string } {
-  if (!text) return { chat: "", json: "" };
+function parseResponse(text: string): { chat: string; json: string; hasSeparator: boolean } {
+  if (!text) return { chat: "", json: "", hasSeparator: false };
 
   const parts = text.split("---");
   if (parts.length >= 2) {
@@ -47,15 +47,30 @@ function parseResponse(text: string): { chat: string; json: string } {
       jsonSection = codeBlockMatch[1].trim();
     }
 
-    return { chat: chatSection, json: jsonSection };
+    return { chat: chatSection, json: jsonSection, hasSeparator: true };
   }
 
   const trimmed = text.trim();
   if (trimmed.startsWith("{")) {
-    return { chat: "", json: trimmed };
+    return { chat: "", json: trimmed, hasSeparator: false };
   }
 
-  return { chat: trimmed, json: "" };
+  return { chat: trimmed, json: "", hasSeparator: false };
+}
+
+// Helper to format streaming output for display in chat
+function formatStreamingOutput(
+  outputs: Record<string, string>,
+  merged: string
+): string {
+  const lines: string[] = [];
+
+  if (outputs.A) lines.push(`[A] Claude: ${outputs.A.slice(0, 100)}...`);
+  if (outputs.B) lines.push(`[B] Gemini: ${outputs.B.slice(0, 100)}...`);
+  if (outputs.C) lines.push(`[C] GPT-4o: ${outputs.C.slice(0, 100)}...`);
+  if (merged) lines.push(`\n[Merged] ${merged.slice(0, 100)}...`);
+
+  return lines.join("\n");
 }
 
 function applyPatches(tree: UITree, jsonl: string): UITree {
@@ -108,6 +123,7 @@ type EnsembleMetadata = {
 };
 
 interface ChatSidebarProps {
+  initialTree?: UITree | null;
   onTreeUpdate?: (tree: UITree | null) => void;
   onEnsembleTreesUpdate?: (trees: {
     merged: UITree;
@@ -117,15 +133,25 @@ interface ChatSidebarProps {
   }) => void;
   onGenerationModeChange?: (mode: GenerationMode) => void;
   onEnsembleMetadataUpdate?: (metadata: EnsembleMetadata | null) => void;
+  onEnsembleGenerationStart?: () => void;
 }
 
 export function ChatSidebar({
+  initialTree,
   onTreeUpdate,
   onEnsembleTreesUpdate,
   onGenerationModeChange,
   onEnsembleMetadataUpdate,
+  onEnsembleGenerationStart,
 }: ChatSidebarProps) {
   const [tree, setTree] = useState<UITree>({ root: null, elements: {} });
+
+  // Sync tree state when initialTree prop changes (e.g., when page loads saved tree)
+  useEffect(() => {
+    if (initialTree && initialTree.root) {
+      setTree(initialTree);
+    }
+  }, [initialTree]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -206,6 +232,8 @@ export function ChatSidebar({
           C: { root: null, elements: {} },
         });
         setEnsembleMetadata(null);
+        // Notify parent to show the ensemble grid
+        onEnsembleGenerationStart?.();
       }
 
       try {
@@ -223,40 +251,158 @@ export function ChatSidebar({
             throw new Error("Failed to fetch response");
           }
 
-          const data = await response.json();
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error("No reader available");
+
+          const decoder = new TextDecoder();
+          let buffer = "";
           const assistantId = `assistant-${Date.now()}`;
 
-          const emptyTree: UITree = { root: null, elements: {} };
-          const newTrees = {
-            merged: data.result ? applyPatches(emptyTree, data.result) : emptyTree,
-            A: data.rawOutputs?.A ? applyPatches(emptyTree, data.rawOutputs.A) : emptyTree,
-            B: data.rawOutputs?.B ? applyPatches(emptyTree, data.rawOutputs.B) : emptyTree,
-            C: data.rawOutputs?.C ? applyPatches(emptyTree, data.rawOutputs.C) : emptyTree,
-          };
-
-          setEnsembleTrees(newTrees);
-          setTree(newTrees.merged);
-          setEnsembleMetadata(data.metadata);
-
-          const totalEnsembleTokens =
-            (data.metadata?.generators?.A?.usage?.totalTokens || 0) +
-            (data.metadata?.generators?.B?.usage?.totalTokens || 0) +
-            (data.metadata?.generators?.C?.usage?.totalTokens || 0) +
-            (data.metadata?.evaluator?.usage?.totalTokens || 0);
-
+          // Add streaming placeholder message
           setMessages((prev) => [
             ...prev,
-            {
-              id: assistantId,
-              role: "assistant",
-              content: `Generated UI from 3 models (${data.metadata?.timing?.totalMs}ms). Use the preview toggles to compare.`,
-              tokens: {
-                promptTokens: 0,
-                completionTokens: 0,
-                totalTokens: totalEnsembleTokens,
-              },
-            },
+            { id: assistantId, role: "assistant", content: "" },
           ]);
+
+          // Track outputs as they arrive
+          const receivedOutputs: Record<string, string> = { A: "", B: "", C: "" };
+          let mergedOutput = "";
+          let statusMessage = "Starting generation...";
+          let metadata: EnsembleMetadata | null = null;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process SSE events
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6);
+                if (data === "[DONE]") continue;
+
+                try {
+                  const event = JSON.parse(data);
+
+                  if (event.type === "status") {
+                    statusMessage = event.message;
+                    // Update message to show status
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === assistantId
+                          ? { ...m, content: `${statusMessage}\n\n${formatStreamingOutput(receivedOutputs, mergedOutput)}` }
+                          : m
+                      )
+                    );
+                  }
+
+                  if (event.type === "generator") {
+                    const modelKey = event.model as "A" | "B" | "C";
+                    if (event.status === "complete") {
+                      receivedOutputs[modelKey] = event.output;
+
+                      // Update the corresponding tree panel immediately
+                      const emptyTree: UITree = { root: null, elements: {} };
+                      setEnsembleTrees((prev) => ({
+                        ...prev,
+                        [modelKey]: event.output ? applyPatches(emptyTree, event.output) : emptyTree,
+                      }));
+
+                      // Update chat message with progress
+                      const completedCount = Object.values(receivedOutputs).filter(Boolean).length;
+                      setMessages((prev) =>
+                        prev.map((m) =>
+                          m.id === assistantId
+                            ? {
+                                ...m,
+                                content: `Models completed: ${completedCount}/3\n\n${formatStreamingOutput(receivedOutputs, mergedOutput)}`,
+                              }
+                            : m
+                        )
+                      );
+                    }
+                  }
+
+                  if (event.type === "evaluator" && event.status === "streaming") {
+                    mergedOutput = event.accumulated || mergedOutput + event.chunk;
+
+                    // Update merged tree as it streams
+                    const emptyTree: UITree = { root: null, elements: {} };
+                    setEnsembleTrees((prev) => ({
+                      ...prev,
+                      merged: applyPatches(emptyTree, mergedOutput),
+                    }));
+
+                    // Update main tree too
+                    setTree(applyPatches(emptyTree, mergedOutput));
+
+                    // Update chat with streaming merged output
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === assistantId
+                          ? {
+                              ...m,
+                              content: `Merging outputs...\n\n${formatStreamingOutput(receivedOutputs, mergedOutput)}`,
+                            }
+                          : m
+                      )
+                    );
+                  }
+
+                  if (event.type === "done") {
+                    metadata = event.metadata;
+
+                    // Final tree updates
+                    const emptyTree: UITree = { root: null, elements: {} };
+                    const finalTrees = {
+                      merged: event.result ? applyPatches(emptyTree, event.result) : emptyTree,
+                      A: receivedOutputs.A ? applyPatches(emptyTree, receivedOutputs.A) : emptyTree,
+                      B: receivedOutputs.B ? applyPatches(emptyTree, receivedOutputs.B) : emptyTree,
+                      C: receivedOutputs.C ? applyPatches(emptyTree, receivedOutputs.C) : emptyTree,
+                    };
+
+                    setEnsembleTrees(finalTrees);
+                    setTree(finalTrees.merged);
+                    setEnsembleMetadata(metadata);
+
+                    // Calculate total tokens
+                    const totalEnsembleTokens =
+                      (metadata?.generators?.A?.usage?.totalTokens || 0) +
+                      (metadata?.generators?.B?.usage?.totalTokens || 0) +
+                      (metadata?.generators?.C?.usage?.totalTokens || 0) +
+                      (metadata?.evaluator?.usage?.totalTokens || 0);
+
+                    // Final message
+                    setMessages((prev) =>
+                      prev.map((m) =>
+                        m.id === assistantId
+                          ? {
+                              ...m,
+                              content: `Generated UI from 3 models (${metadata?.timing?.totalMs}ms). Use the preview toggles to compare.`,
+                              tokens: {
+                                promptTokens: 0,
+                                completionTokens: 0,
+                                totalTokens: totalEnsembleTokens,
+                              },
+                            }
+                          : m
+                      )
+                    );
+                  }
+
+                  if (event.type === "error") {
+                    throw new Error(event.error);
+                  }
+                } catch (parseError) {
+                  console.warn("Failed to parse SSE data:", data, parseError);
+                }
+              }
+            }
+          }
         } else {
           const response = await fetch("/api/json-render", {
             method: "POST",
@@ -295,20 +441,21 @@ export function ChatSidebar({
             assistantContent += chunk;
 
             const contentWithoutTokens = assistantContent.replace(/\n\[\[TOKENS:.*\]\]$/, "");
-            const { json } = parseResponse(contentWithoutTokens);
+            const { json, hasSeparator, chat } = parseResponse(contentWithoutTokens);
             if (json) {
               setTree((prev) => applyPatches(prev, json));
             }
 
-            const parts = contentWithoutTokens.split("---");
-            if (parts.length >= 2) {
-              const chatText = parts.slice(1).join("---").trim();
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: chatText || "..." } : m
-                )
-              );
-            }
+            // Update message content during streaming:
+            // - Before separator: show raw JSON so user sees progress
+            // - After separator: show the chat text
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: hasSeparator ? (chat || "...") : contentWithoutTokens }
+                  : m
+              )
+            );
           }
 
           const tokenMatch = assistantContent.match(/\[\[TOKENS:(.*)\]\]$/);
@@ -516,10 +663,37 @@ export function ChatSidebar({
               {(() => {
                 const firstAssistantIndex = messages.findIndex((m) => m.role === "assistant");
                 return messages.map((message, index) => {
-                  const { chat, json } = parseResponse(message.content);
-                  const displayText =
-                    message.role === "user" ? message.content : chat || message.content;
+                  const { chat, json, hasSeparator } = parseResponse(message.content);
                   const isFirstAssistant = index === firstAssistantIndex;
+                  const isCurrentlyStreaming = isLoading && index === messages.length - 1 && message.role === "assistant";
+
+                  // Determine what to display:
+                  // - User messages: show content as-is
+                  // - Assistant streaming without separator: show JSON being generated
+                  // - Assistant with separator or done: show chat text
+                  let displayText = message.content;
+                  let showStreamingJson = false;
+
+                  // Check if this is an ensemble streaming message
+                  const isEnsembleStreaming =
+                    isCurrentlyStreaming &&
+                    generationMode === "ensemble" &&
+                    (message.content.includes("Models completed:") ||
+                      message.content.includes("Merging") ||
+                      message.content.includes("Starting generation"));
+
+                  if (message.role === "assistant") {
+                    if (isCurrentlyStreaming && !hasSeparator && json && !isEnsembleStreaming) {
+                      // Streaming JSON - show it in a code-like format
+                      showStreamingJson = true;
+                      displayText = json;
+                    } else if (hasSeparator) {
+                      // Has separator - show chat text
+                      displayText = chat || "...";
+                    } else if (chat) {
+                      displayText = chat;
+                    }
+                  }
 
                   return (
                     <div
@@ -556,16 +730,36 @@ export function ChatSidebar({
                                 style={{ animationDelay: "300ms" }}
                               />
                             </div>
+                          ) : showStreamingJson ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-medium">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                                Generating UI...
+                              </div>
+                              <pre className="font-mono text-[10px] text-muted-foreground whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
+                                {displayText}
+                              </pre>
+                            </div>
+                          ) : isEnsembleStreaming ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 text-[10px] text-purple-600 font-medium">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-purple-500" />
+                                Comparing 3 Models...
+                              </div>
+                              <pre className="font-mono text-[10px] text-muted-foreground whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
+                                {message.content}
+                              </pre>
+                            </div>
                           ) : (
                             <p className="whitespace-pre-wrap">{displayText}</p>
                           )}
                         </div>
-                        {isFirstAssistant && json && (
+                        {isFirstAssistant && json && !isCurrentlyStreaming && (
                           <div className="space-y-2">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Generated JSON
                             </p>
-                            <pre className="overflow-auto rounded-lg bg-muted/50 p-3 text-[10px] text-muted-foreground">
+                            <pre className="overflow-auto rounded-lg bg-muted/50 p-3 text-[10px] text-muted-foreground max-h-[150px]">
                               {JSON.stringify(tree, null, 2)}
                             </pre>
                           </div>

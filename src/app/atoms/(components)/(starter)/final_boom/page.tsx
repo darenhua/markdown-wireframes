@@ -250,6 +250,85 @@ function HighlightOverlay() {
   );
 }
 
+// ============ SELECTED COMPONENT HIGHLIGHT ============
+function SelectedComponentHighlight() {
+  const { selectedComponent } = useInspector();
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  // Update rect position on scroll/resize
+  useEffect(() => {
+    if (!selectedComponent) {
+      setRect(null);
+      return;
+    }
+
+    // Initial rect from selection
+    setRect(selectedComponent.rect);
+
+    // Find the actual element and track its position
+    const updatePosition = () => {
+      // Try to find the element by various selectors
+      let element: Element | null = null;
+
+      if (selectedComponent.id) {
+        element = document.getElementById(selectedComponent.id);
+      }
+
+      if (!element && selectedComponent.textContent) {
+        // Try to find by text content
+        const walker = document.createTreeWalker(
+          document.body,
+          NodeFilter.SHOW_ELEMENT,
+          null
+        );
+
+        while (walker.nextNode()) {
+          const node = walker.currentNode as HTMLElement;
+          if (
+            node.tagName === selectedComponent.tagName &&
+            node.textContent?.trim() === selectedComponent.textContent
+          ) {
+            element = node;
+            break;
+          }
+        }
+      }
+
+      if (element) {
+        setRect(element.getBoundingClientRect());
+      }
+    };
+
+    // Update on scroll and resize
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    // Also update periodically for dynamic content
+    const interval = setInterval(updatePosition, 500);
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      clearInterval(interval);
+    };
+  }, [selectedComponent]);
+
+  if (!selectedComponent || !rect) return null;
+
+  return (
+    <div
+      className="pointer-events-none fixed z-[9997] border-2 border-yellow-400 bg-yellow-400/15 rounded-sm transition-all duration-150"
+      style={{
+        top: rect.top - 2,
+        left: rect.left - 2,
+        width: rect.width + 4,
+        height: rect.height + 4,
+        boxShadow: "0 0 0 1px rgba(250, 204, 21, 0.3), 0 0 8px rgba(250, 204, 21, 0.2)",
+      }}
+    />
+  );
+}
+
 // ============ FLOATING PANEL TYPES ============
 type ActivePanel = "pointer" | "notes";
 
@@ -318,6 +397,8 @@ function FloatingBarWithRouter() {
   });
   const [generationMode, setGenerationMode] = useState<GenerationMode>("standard");
   const [ensembleMetadata, setEnsembleMetadata] = useState<EnsembleMetadata | null>(null);
+  // Separate state for grid visibility - allows hiding grid on Enter while keeping ensemble mode selected
+  const [showEnsembleGrid, setShowEnsembleGrid] = useState(false);
   
   // Initialize preview source from URL or default
   const [previewSource, setPreviewSource] = useState<PreviewSource>(() => {
@@ -405,6 +486,18 @@ function FloatingBarWithRouter() {
           if (loadedTree) {
             setLoadedTreeJson(loadedTree);
             setChatTree(loadedTree as LocalUITree);
+
+            // Hide ensemble grid but keep mode selected for next prompt
+            if (showEnsembleGrid) {
+              setShowEnsembleGrid(false);
+              setEnsembleTrees({
+                merged: { root: null, elements: {} },
+                A: { root: null, elements: {} },
+                B: { root: null, elements: {} },
+                C: { root: null, elements: {} },
+              });
+              console.log("📄 Grid hidden, showing saved tree (ensemble mode still active for next prompt)");
+            }
           }
         } else {
           console.error("❌ Failed to save tree.json:", result.message);
@@ -413,7 +506,7 @@ function FloatingBarWithRouter() {
         console.error("❌ Error saving tree.json:", err);
       }
     }
-  }, [chatTree, ensembleTrees, generationMode, previewSource, currentPage]);
+  }, [chatTree, ensembleTrees, showEnsembleGrid, previewSource, currentPage]);
 
   // Hotkey handlers
   useEffect(() => {
@@ -433,8 +526,8 @@ function FloatingBarWithRouter() {
         return;
       }
 
-      // Enter key to save in ensemble mode
-      if (e.key === "Enter" && generationMode === "ensemble") {
+      // Enter key to save when ensemble grid is showing
+      if (e.key === "Enter" && showEnsembleGrid) {
         e.preventDefault();
         handleManualSave();
         return;
@@ -452,7 +545,7 @@ function FloatingBarWithRouter() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggle, enable, selectedComponent, activePanel, generationMode, handleManualSave]);
+  }, [toggle, enable, selectedComponent, activePanel, showEnsembleGrid, handleManualSave]);
 
   // Fetch routes on mount and load the current page's tree
   useEffect(() => {
@@ -751,13 +844,58 @@ function FloatingBarWithRouter() {
   return (
     <div className="relative h-screen p-4 pb-8">
       <div className="flex h-full w-full gap-4">
-        <div className="h-full w-[42%] min-w-[320px] max-w-[460px]">
-          <ChatSidebar
-            onTreeUpdate={setChatTree}
-            onEnsembleTreesUpdate={setEnsembleTrees}
-            onGenerationModeChange={setGenerationMode}
-            onEnsembleMetadataUpdate={setEnsembleMetadata}
-          />
+        <div className="h-full w-[42%] min-w-[320px] max-w-[460px] flex flex-col">
+          {/* Mode indicator bar */}
+          <div className="h-1 w-full rounded-t-lg overflow-hidden">
+            <div
+              className={cn(
+                "h-full w-full transition-colors duration-200",
+                activePanel === "pointer" ? "bg-primary" : "bg-amber-500"
+              )}
+            />
+          </div>
+
+          {/* Sidebar content - swaps between Chat and Notebook */}
+          <div className="flex-1 min-h-0">
+            {activePanel === "pointer" ? (
+              <ChatSidebar
+                initialTree={chatTree as UITree | null}
+                onTreeUpdate={setChatTree}
+                onEnsembleTreesUpdate={setEnsembleTrees}
+                onGenerationModeChange={setGenerationMode}
+                onEnsembleMetadataUpdate={setEnsembleMetadata}
+                onEnsembleGenerationStart={() => setShowEnsembleGrid(true)}
+              />
+            ) : (
+              <div className="h-full flex flex-col rounded-b-2xl border border-t-0 border-border/50 bg-background/80 shadow-xl shadow-black/5 overflow-hidden">
+                {/* NotebookPanel takes full height */}
+                <div className="flex-1 min-h-0">
+                  <NotebookPanel
+                    pageName={currentPageName}
+                    elementKey={specElementKey}
+                    tree={loadedTreeJson}
+                    initialContext={specContext}
+                    onContextUpdate={(content) => setSpecContext(content)}
+                    onElementKeyChange={(key) => setSpecElementKey(key)}
+                  />
+                </div>
+
+                {/* Inspector toggle at bottom */}
+                <div className="shrink-0 px-4 py-3 border-t border-border/50 bg-muted/20">
+                  <Button
+                    onClick={toggle}
+                    size="sm"
+                    variant={isEnabled ? "default" : "outline"}
+                    className="w-full gap-2 h-8 text-xs"
+                  >
+                    <Crosshair className="h-3.5 w-3.5" />
+                    {isEnabled ? "Inspector ON" : "Inspector OFF"}
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground text-center mt-1.5">Press C to toggle</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="relative flex-1">
@@ -789,7 +927,7 @@ function FloatingBarWithRouter() {
           <div className="flex h-full w-full items-center justify-center overflow-auto rounded-lg bg-muted-foreground">
             {isLoading ? (
               <div className="size-8 animate-spin rounded-full border-2 border-background/30 border-t-background" />
-            ) : generationMode === "ensemble" && (ensembleTrees.merged.root || ensembleTrees.A.root || ensembleTrees.B.root || ensembleTrees.C.root) ? (
+            ) : showEnsembleGrid && (ensembleTrees.merged.root || ensembleTrees.A.root || ensembleTrees.B.root || ensembleTrees.C.root) ? (
               // Multi-panel ensemble view - 2x2 grid
               <div className="grid grid-cols-2 grid-rows-2 h-full w-full gap-2 p-2">
                 {(["merged", "A", "B", "C"] as const).map((source) => {
@@ -881,38 +1019,9 @@ function FloatingBarWithRouter() {
             )}
           </div>
 
-          {/* Highlight overlay */}
+          {/* Highlight overlays */}
           <HighlightOverlay />
-
-          {/* Floating panel - Notes only */}
-          {activePanel === "notes" && (
-            <div className="fixed bottom-3 left-20 z-30 flex w-80 flex-col rounded-lg border bg-gray-100 shadow-lg">
-              <div className="h-[340px]">
-                <NotebookPanel
-                  pageName={currentPageName}
-                  elementKey={specElementKey}
-                  tree={loadedTreeJson}
-                  initialContext={specContext}
-                  onContextUpdate={(content) => setSpecContext(content)}
-                  onElementKeyChange={(key) => setSpecElementKey(key)}
-                />
-              </div>
-
-              {/* Inspector toggle */}
-              <div className="px-3 py-2 border-t">
-                <Button
-                  onClick={toggle}
-                  size="sm"
-                  variant={isEnabled ? "default" : "outline"}
-                  className="w-full gap-2 h-7 text-xs"
-                >
-                  <Crosshair className="h-3 w-3" />
-                  {isEnabled ? "Inspector ON" : "Inspector OFF"}
-                </Button>
-                <p className="text-[9px] text-muted-foreground text-center mt-1">Press C to toggle</p>
-              </div>
-            </div>
-          )}
+          <SelectedComponentHighlight />
 
           {/* Floating bar */}
           <div className="absolute -bottom-6 left-1/2 z-40 flex -translate-x-1/2 gap-1 rounded-full border bg-background/95 px-1.5 py-1 shadow-lg backdrop-blur-sm">

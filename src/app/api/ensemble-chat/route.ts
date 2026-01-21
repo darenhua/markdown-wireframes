@@ -1,7 +1,7 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { generateText, streamText } from "ai";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARED SYSTEM PROMPT FOR ALL GENERATORS
@@ -139,14 +139,14 @@ const MODELS = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROUTE HANDLER
+// ROUTE HANDLER - SSE STREAMING
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
   const body = await req.json();
   const {
     prompt,
-    evaluatorVariant = "mergeSimple",
+    evaluatorVariant = "mergeStructured",
   }: { prompt: string; evaluatorVariant?: EvaluatorVariant } = body;
 
   if (!prompt) {
@@ -156,79 +156,126 @@ export async function POST(req: Request) {
     });
   }
 
-  const startTime = Date.now();
+  const encoder = new TextEncoder();
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // STEP 1: Call all 3 models in parallel
-  // ─────────────────────────────────────────────────────────────────────────
+  const stream = new ReadableStream({
+    async start(controller) {
+      const startTime = Date.now();
 
-  const generatorPromises = [
-    // Claude Haiku
-    generateText({
-      model: MODELS.claudeHaiku,
-      system: GENERATOR_SYSTEM_PROMPT,
-      prompt: `Generate UI components for: ${prompt}`,
-      temperature: 0.7,
-      experimental_telemetry: {
-        isEnabled: true,
-        metadata: {
-          generator: "claude-haiku-4-5-20251001",
-          variant: evaluatorVariant,
-        },
-      },
-    }),
-    // Gemini Flash
-    generateText({
-      model: MODELS.geminiFlash,
-      system: GENERATOR_SYSTEM_PROMPT,
-      prompt: `Generate UI components for: ${prompt}`,
-      temperature: 0.7,
-      experimental_telemetry: {
-        isEnabled: true,
-        metadata: {
-          generator: "gemini-2.0-flash",
-          variant: evaluatorVariant,
-        },
-      },
-    }),
-    // GPT-4o Mini
-    generateText({
-      model: MODELS.gpt4o,
-      system: GENERATOR_SYSTEM_PROMPT,
-      prompt: `Generate UI components for: ${prompt}`,
-      temperature: 0.7,
-      experimental_telemetry: {
-        isEnabled: true,
-        metadata: {
-          generator: "gpt-4o",
-          variant: evaluatorVariant,
-        },
-      },
-    }),
-  ];
+      // Helper to send SSE event
+      const sendEvent = (data: object) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
 
-  const [claudeResult, geminiResult, gptResult] = await Promise.all(
-    generatorPromises.map((p) =>
-      p.catch((e) => ({ text: "", error: e.message, usage: null }))
-    )
-  );
+      try {
+        // Send initial status
+        sendEvent({ type: "status", message: "Starting generation with 3 models..." });
 
-  const generatorEndTime = Date.now();
+        // ─────────────────────────────────────────────────────────────────
+        // STEP 1: Call all 3 models in parallel, emit as each completes
+        // ─────────────────────────────────────────────────────────────────
 
-  // Collect outputs
-  const outputs = {
-    A: { model: "claude-haiku-4.5", text: claudeResult.text || "", usage: (claudeResult as { usage?: unknown }).usage },
-    B: { model: "gemini-2.0-flash", text: geminiResult.text || "", usage: (geminiResult as { usage?: unknown }).usage },
-    C: { model: "gpt-4o", text: gptResult.text || "", usage: (gptResult as { usage?: unknown }).usage },
-  };
+        const outputs: Record<string, { model: string; text: string; usage: unknown }> = {
+          A: { model: "claude-haiku-4.5", text: "", usage: null },
+          B: { model: "gemini-2.0-flash", text: "", usage: null },
+          C: { model: "gpt-4o", text: "", usage: null },
+        };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // STEP 2: Run evaluator to combine/select best output
-  // ─────────────────────────────────────────────────────────────────────────
+        // Create promises that emit events when they complete
+        const generatorPromises = [
+          generateText({
+            model: MODELS.claudeHaiku,
+            system: GENERATOR_SYSTEM_PROMPT,
+            prompt: `Generate UI components for: ${prompt}`,
+            temperature: 0.7,
+          }).then((result) => {
+            outputs.A = { model: "claude-haiku-4.5", text: result.text || "", usage: result.usage };
+            sendEvent({
+              type: "generator",
+              model: "A",
+              name: "claude-haiku-4.5",
+              status: "complete",
+              output: result.text || "",
+              usage: result.usage,
+            });
+          }).catch((e) => {
+            outputs.A = { model: "claude-haiku-4.5", text: "", usage: null };
+            sendEvent({
+              type: "generator",
+              model: "A",
+              name: "claude-haiku-4.5",
+              status: "error",
+              error: e.message,
+            });
+          }),
 
-  const evaluatorPrompt = EVALUATOR_PROMPTS[evaluatorVariant];
+          generateText({
+            model: MODELS.geminiFlash,
+            system: GENERATOR_SYSTEM_PROMPT,
+            prompt: `Generate UI components for: ${prompt}`,
+            temperature: 0.7,
+          }).then((result) => {
+            outputs.B = { model: "gemini-2.0-flash", text: result.text || "", usage: result.usage };
+            sendEvent({
+              type: "generator",
+              model: "B",
+              name: "gemini-2.0-flash",
+              status: "complete",
+              output: result.text || "",
+              usage: result.usage,
+            });
+          }).catch((e) => {
+            outputs.B = { model: "gemini-2.0-flash", text: "", usage: null };
+            sendEvent({
+              type: "generator",
+              model: "B",
+              name: "gemini-2.0-flash",
+              status: "error",
+              error: e.message,
+            });
+          }),
 
-  const evaluatorInput = `USER REQUEST: "${prompt}"
+          generateText({
+            model: MODELS.gpt4o,
+            system: GENERATOR_SYSTEM_PROMPT,
+            prompt: `Generate UI components for: ${prompt}`,
+            temperature: 0.7,
+          }).then((result) => {
+            outputs.C = { model: "gpt-4o", text: result.text || "", usage: result.usage };
+            sendEvent({
+              type: "generator",
+              model: "C",
+              name: "gpt-4o",
+              status: "complete",
+              output: result.text || "",
+              usage: result.usage,
+            });
+          }).catch((e) => {
+            outputs.C = { model: "gpt-4o", text: "", usage: null };
+            sendEvent({
+              type: "generator",
+              model: "C",
+              name: "gpt-4o",
+              status: "error",
+              error: e.message,
+            });
+          }),
+        ];
+
+        // Wait for all generators to complete
+        await Promise.all(generatorPromises);
+
+        const generatorEndTime = Date.now();
+
+        // ─────────────────────────────────────────────────────────────────
+        // STEP 2: Run evaluator with streaming
+        // ─────────────────────────────────────────────────────────────────
+
+        sendEvent({ type: "status", message: "Merging outputs..." });
+
+        const evaluatorPrompt = EVALUATOR_PROMPTS[evaluatorVariant];
+
+        const evaluatorInput = `USER REQUEST: "${prompt}"
 
 OUTPUT A (${outputs.A.model}):
 ${outputs.A.text || "[FAILED TO GENERATE]"}
@@ -239,81 +286,83 @@ ${outputs.B.text || "[FAILED TO GENERATE]"}
 OUTPUT C (${outputs.C.model}):
 ${outputs.C.text || "[FAILED TO GENERATE]"}`;
 
-  const evaluatorResult = await generateText({
-    model: MODELS.evaluator,
-    system: evaluatorPrompt,
-    prompt: evaluatorInput,
-    temperature: 0.3, // Lower temperature for more consistent evaluation
-    experimental_telemetry: {
-      isEnabled: true,
-      metadata: {
-        step: "evaluator",
-        variant: evaluatorVariant,
-      },
+        // Stream the evaluator output
+        const evaluatorResult = streamText({
+          model: MODELS.evaluator,
+          system: evaluatorPrompt,
+          prompt: evaluatorInput,
+          temperature: 0.3,
+        });
+
+        let evaluatorFullText = "";
+
+        for await (const chunk of evaluatorResult.textStream) {
+          evaluatorFullText += chunk;
+          sendEvent({
+            type: "evaluator",
+            status: "streaming",
+            chunk: chunk,
+            accumulated: evaluatorFullText,
+          });
+        }
+
+        const evaluatorUsage = await evaluatorResult.usage;
+        const endTime = Date.now();
+
+        // Clean up any markdown code blocks
+        const finalJson = evaluatorFullText
+          .replace(/```json\n?/g, "")
+          .replace(/```\n?/g, "")
+          .trim();
+
+        // ─────────────────────────────────────────────────────────────────
+        // STEP 3: Send completion event with full metadata
+        // ─────────────────────────────────────────────────────────────────
+
+        sendEvent({
+          type: "done",
+          result: finalJson,
+          metadata: {
+            evaluatorVariant,
+            timing: {
+              generatorsMs: generatorEndTime - startTime,
+              evaluatorMs: endTime - generatorEndTime,
+              totalMs: endTime - startTime,
+            },
+            generators: {
+              A: { model: outputs.A.model, outputLength: outputs.A.text.length, usage: outputs.A.usage },
+              B: { model: outputs.B.model, outputLength: outputs.B.text.length, usage: outputs.B.usage },
+              C: { model: outputs.C.model, outputLength: outputs.C.text.length, usage: outputs.C.usage },
+            },
+            evaluator: {
+              model: "claude-sonnet-4-20250514",
+              usage: evaluatorUsage,
+            },
+          },
+          rawOutputs: {
+            A: outputs.A.text,
+            B: outputs.B.text,
+            C: outputs.C.text,
+          },
+        });
+
+        controller.close();
+      } catch (error) {
+        console.error("Ensemble streaming error:", error);
+        sendEvent({
+          type: "error",
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        controller.close();
+      }
     },
   });
 
-  const endTime = Date.now();
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // STEP 3: Parse final output and return response
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Extract JSON from evaluator response
-  let finalJson = evaluatorResult.text;
-
-  // Clean up any markdown code blocks if present
-  finalJson = finalJson
-    .replace(/```json\n?/g, "")
-    .replace(/```\n?/g, "")
-    .trim();
-
-  return new Response(
-    JSON.stringify({
-      // Final combined/selected output
-      result: finalJson,
-
-      // Metadata for analysis
-      metadata: {
-        evaluatorVariant,
-        timing: {
-          generatorsMs: generatorEndTime - startTime,
-          evaluatorMs: endTime - generatorEndTime,
-          totalMs: endTime - startTime,
-        },
-        generators: {
-          A: {
-            model: outputs.A.model,
-            outputLength: outputs.A.text.length,
-            usage: outputs.A.usage,
-          },
-          B: {
-            model: outputs.B.model,
-            outputLength: outputs.B.text.length,
-            usage: outputs.B.usage,
-          },
-          C: {
-            model: outputs.C.model,
-            outputLength: outputs.C.text.length,
-            usage: outputs.C.usage,
-          },
-        },
-        evaluator: {
-          model: "claude-sonnet-4-20250514",
-          usage: evaluatorResult.usage,
-        },
-      },
-
-      // Raw outputs for debugging/comparison
-      rawOutputs: {
-        A: outputs.A.text,
-        B: outputs.B.text,
-        C: outputs.C.text,
-        evaluatorFull: evaluatorResult.text,
-      },
-    }),
-    {
-      headers: { "Content-Type": "application/json" },
-    }
-  );
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
