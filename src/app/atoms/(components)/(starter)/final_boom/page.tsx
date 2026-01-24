@@ -28,7 +28,7 @@ import {
 } from "./actions";
 import { EmptyPageState } from "./error";
 import { NotebookPanel } from "./components/NotebookPanel";
-import { createInitialContext, type SelectorInfo } from "./spec-actions";
+import { createInitialContext, getElementContextMap, type SelectorInfo } from "./spec-actions";
 import { ChatSidebar } from "./ChatSidebar";
 import type { UITree } from "@json-render/core";
 import { Renderer, DataProvider, VisibilityProvider, ActionProvider } from "@json-render/react";
@@ -80,6 +80,19 @@ interface ExtendedInspectorContextType extends InspectorContextType {
 // ============ CONTEXTS ============
 const InspectorContext = createContext<ExtendedInspectorContextType | null>(null);
 
+// Context for component highlighting (components with context files)
+type ComponentContextMapType = {
+  contextMap: Record<string, boolean>;
+  loadContextMap: (pageName: string) => Promise<void>;
+};
+const ComponentContextContext = createContext<ComponentContextMapType | null>(null);
+
+function useComponentContext() {
+  const ctx = useContext(ComponentContextContext);
+  if (!ctx) throw new Error("useComponentContext must be used within ComponentContextProvider");
+  return ctx;
+}
+
 function useInspector() {
   const ctx = useContext(InspectorContext);
   if (!ctx) throw new Error("useInspector must be used within InspectorProvider");
@@ -87,6 +100,115 @@ function useInspector() {
 }
 
 // ============ PROVIDERS ============
+
+// Provider for component context highlighting
+function ComponentContextProvider({ children }: { children: React.ReactNode }) {
+  const [contextMap, setContextMap] = useState<Record<string, boolean>>({});
+
+  const loadContextMap = useCallback(async (pageName: string) => {
+    if (!pageName) return;
+    try {
+      const map = await getElementContextMap(pageName);
+      setContextMap(map);
+      console.log("📘 Loaded component context map:", Object.keys(map).length, "entries");
+    } catch (error) {
+      console.error("Failed to load context map:", error);
+    }
+  }, []);
+
+  return (
+    <ComponentContextContext.Provider value={{ contextMap, loadContextMap }}>
+      {children}
+    </ComponentContextContext.Provider>
+  );
+}
+
+// Wrapper component that applies highlight styles to elements with context
+function ContextHighlightWrapper({
+  children,
+  contextMap
+}: {
+  children: React.ReactNode;
+  contextMap: Record<string, boolean>;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Find all elements and check if they have context
+    const applyHighlights = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      // Remove all existing highlights first
+      container.querySelectorAll('[data-has-context="true"]').forEach(el => {
+        el.removeAttribute('data-has-context');
+      });
+
+      // Apply highlights based on context map
+      for (const [key, hasContext] of Object.entries(contextMap)) {
+        if (!hasContext) continue;
+
+        // Try to find elements by various methods
+        // 1. By data-element-key attribute
+        const byKey = container.querySelector(`[data-element-key="${key}"]`);
+        if (byKey) {
+          byKey.setAttribute('data-has-context', 'true');
+          continue;
+        }
+
+        // 2. By id
+        const byId = container.querySelector(`#${CSS.escape(key)}`);
+        if (byId) {
+          byId.setAttribute('data-has-context', 'true');
+          continue;
+        }
+
+        // 3. By text content (for buttons, headings, etc)
+        // This is a fallback for elements that match by text
+        const elements = container.querySelectorAll('button, h1, h2, h3, h4, p, span, label, div');
+        for (const el of elements) {
+          const text = el.textContent?.trim() || '';
+          // Match if the key is a prefix of the text or vice versa
+          if (text && (text.startsWith(key) || key.startsWith(text.slice(0, 20)))) {
+            el.setAttribute('data-has-context', 'true');
+            break;
+          }
+        }
+      }
+    };
+
+    // Apply highlights after a short delay to ensure rendering is complete
+    const timeoutId = setTimeout(applyHighlights, 100);
+
+    // Also observe for DOM changes
+    const observer = new MutationObserver(() => {
+      setTimeout(applyHighlights, 50);
+    });
+
+    const currentContainer = containerRef.current;
+    if (currentContainer) {
+      observer.observe(currentContainer, {
+        childList: true,
+        subtree: true,
+        attributes: false
+      });
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      observer.disconnect();
+    };
+  }, [contextMap]);
+
+  return (
+    <div ref={containerRef} className="context-highlight-container">
+      {children}
+    </div>
+  );
+}
+
 function InspectorProvider({ children }: { children: React.ReactNode }) {
   const [isEnabled, setIsEnabled] = useState(false);
   const [hoveredElement, setHoveredElement] = useState<InspectedElement | null>(null);
@@ -382,7 +504,7 @@ function FloatingBarWithRouter() {
     root: string | null;
     elements: Record<string, unknown>;
   };
-  
+
   const [chatTree, setChatTree] = useState<LocalUITree | null>(null);
   const [ensembleTrees, setEnsembleTrees] = useState<{
     merged: LocalUITree;
@@ -399,7 +521,10 @@ function FloatingBarWithRouter() {
   const [ensembleMetadata, setEnsembleMetadata] = useState<EnsembleMetadata | null>(null);
   // Separate state for grid visibility - allows hiding grid on Enter while keeping ensemble mode selected
   const [showEnsembleGrid, setShowEnsembleGrid] = useState(false);
-  
+
+  // Component context map for highlighting elements with context files
+  const [componentContextMap, setComponentContextMap] = useState<Record<string, boolean>>({});
+
   // Initialize preview source from URL or default
   const [previewSource, setPreviewSource] = useState<PreviewSource>(() => {
     if (typeof window !== "undefined") {
@@ -432,16 +557,16 @@ function FloatingBarWithRouter() {
   const updateCurrentPage = useCallback((pageName: string) => {
     setCurrentPage(pageName);
     currentFolderRef.current = pageName;
-    
+
     if (typeof window !== "undefined") {
       // Update localStorage
       localStorage.setItem("specstack-current-page", pageName);
-      
+
       // Update URL query param
       const url = new URL(window.location.href);
       url.searchParams.set("page", pageName);
       window.history.replaceState({}, "", url.toString());
-      
+
       console.log(`📄 Current page set to: ${pageName}`);
     }
   }, []);
@@ -598,7 +723,7 @@ function FloatingBarWithRouter() {
 
           // Set as current page
           updateCurrentPage(pageToLoad);
-          
+
           // Load the tree.json for this page
           try {
             const treeData = await loadTreeJson(pageToLoad);
@@ -608,6 +733,15 @@ function FloatingBarWithRouter() {
             }
           } catch {
             console.log(`No saved tree found for ${pageToLoad}`);
+          }
+
+          // Load the component context map for highlighting
+          try {
+            const contextMap = await getElementContextMap(pageToLoad);
+            setComponentContextMap(contextMap);
+            console.log(`📘 Loaded context map with ${Object.keys(contextMap).length} entries`);
+          } catch {
+            console.log(`No context map for ${pageToLoad}`);
           }
         }
       } catch (error) {
@@ -845,16 +979,6 @@ function FloatingBarWithRouter() {
     <div className="relative h-screen p-4 pb-8">
       <div className="flex h-full w-full gap-4">
         <div className="h-full w-[42%] min-w-[320px] max-w-[460px] flex flex-col">
-          {/* Mode indicator bar */}
-          <div className="h-1 w-full rounded-t-lg overflow-hidden">
-            <div
-              className={cn(
-                "h-full w-full transition-colors duration-200",
-                activePanel === "pointer" ? "bg-primary" : "bg-amber-500"
-              )}
-            />
-          </div>
-
           {/* Sidebar content - swaps between Chat and Notebook */}
           <div className="flex-1 min-h-0">
             {activePanel === "pointer" ? (
@@ -903,7 +1027,7 @@ function FloatingBarWithRouter() {
           <div className="fixed bottom-8 right-8 z-50">
             <div className="flex flex-col items-end gap-1">
               {currentPage && (
-                <div className="text-xs text-white/60 drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
+                <div className="text-xs text-white/60 hidden drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">
                   📄 {currentPage}
                 </div>
               )}
@@ -967,17 +1091,19 @@ function FloatingBarWithRouter() {
                       <AutoInspector>
                         <ScrollArea className="flex-1 p-3">
                           {hasContent ? (
-                            <MemoryRouter>
-                              <DataProvider>
-                                <VisibilityProvider>
-                                  <ActionProvider>
-                                    <div className="space-y-2 scale-90 origin-top-left">
-                                      <Renderer tree={tree as UITree} registry={registry} />
-                                    </div>
-                                  </ActionProvider>
-                                </VisibilityProvider>
-                              </DataProvider>
-                            </MemoryRouter>
+                            <ContextHighlightWrapper contextMap={componentContextMap}>
+                              <MemoryRouter>
+                                <DataProvider>
+                                  <VisibilityProvider>
+                                    <ActionProvider>
+                                      <div className="space-y-2 scale-90 origin-top-left">
+                                        <Renderer tree={tree as UITree} registry={registry} />
+                                      </div>
+                                    </ActionProvider>
+                                  </VisibilityProvider>
+                                </DataProvider>
+                              </MemoryRouter>
+                            </ContextHighlightWrapper>
                           ) : (
                             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                               No content
@@ -993,23 +1119,27 @@ function FloatingBarWithRouter() {
               // Single tree view from standard mode
               <AutoInspector>
                 <ScrollArea className="h-full w-full p-6">
-                  <MemoryRouter>
-                    <DataProvider>
-                      <VisibilityProvider>
-                        <ActionProvider>
-                          <div className="space-y-4">
-                            <Renderer tree={chatTree as UITree} registry={registry} />
-                          </div>
-                        </ActionProvider>
-                      </VisibilityProvider>
-                    </DataProvider>
-                  </MemoryRouter>
+                  <ContextHighlightWrapper contextMap={componentContextMap}>
+                    <MemoryRouter>
+                      <DataProvider>
+                        <VisibilityProvider>
+                          <ActionProvider>
+                            <div className="space-y-4">
+                              <Renderer tree={chatTree as UITree} registry={registry} />
+                            </div>
+                          </ActionProvider>
+                        </VisibilityProvider>
+                      </DataProvider>
+                    </MemoryRouter>
+                  </ContextHighlightWrapper>
                 </ScrollArea>
               </AutoInspector>
             ) : router ? (
               <AutoInspector>
                 <ScrollArea className="h-full w-full p-6">
-                  <RouterProvider router={router} />
+                  <ContextHighlightWrapper contextMap={componentContextMap}>
+                    <RouterProvider router={router} />
+                  </ContextHighlightWrapper>
                 </ScrollArea>
               </AutoInspector>
             ) : routes.length === 0 ? (

@@ -109,6 +109,106 @@
       "hasSpec": true,
       "lastUpdated": "2026-01-20T20:10:43.057Z",
       "contextPath": "components/comp-f2701292d66f/context.md"
+    },
+    "insights-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:38:09.419Z",
+      "contextPath": "components/comp-ed9ab1d502b2/context.md"
+    },
+    "ProfileUJohn Doe": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:43:09.132Z",
+      "contextPath": "components/comp-fff30db61385/context.md"
+    },
+    "engagement-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:44:05.938Z",
+      "contextPath": "components/comp-0a09d0195e5a/context.md"
+    },
+    "feed-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:44:14.591Z",
+      "contextPath": "components/comp-87db087e6876/context.md"
+    },
+    "username": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:44:17.707Z",
+      "contextPath": "components/comp-53002c937e04/context.md"
+    },
+    "profile-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:44:20.157Z",
+      "contextPath": "components/comp-6a0489089b0c/context.md"
+    },
+    "Comments5.2k↑ +8%": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:54:23.450Z",
+      "contextPath": "components/comp-4e4fb5ea5200/context.md"
+    },
+    "notifications-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:54:34.428Z",
+      "contextPath": "components/comp-92c33aedce39/context.md"
+    },
+    "Key InsightsFollower": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:54:49.132Z",
+      "contextPath": "components/comp-c6460389d69d/context.md"
+    },
+    "settings-btn": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T06:54:54.848Z",
+      "contextPath": "components/comp-6c2c3ad90615/context.md"
+    },
+    "comments-metric": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T07:02:14.949Z",
+      "contextPath": "components/comp-be4a562f89f2/context.md"
+    },
+    "Recent PostsPost 1: ": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T07:07:01.994Z",
+      "contextPath": "components/comp-eff4d79b6883/context.md"
+    },
+    "contact-form-container": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T07:09:02.162Z",
+      "contextPath": "components/comp-279dcb049768/context.md"
+    },
+    "Full NameEmail Addre": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T07:09:15.146Z",
+      "contextPath": "components/comp-3934da1a19bd/context.md"
+    },
+    "pricing-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T15:26:14.434Z",
+      "contextPath": "components/comp-abdcc5eabd1d/context.md"
+    },
+    "subscribe-button": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T15:26:24.255Z",
+      "contextPath": "components/comp-6da3c365af1a/context.md"
+    },
+    "price-text": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T15:27:00.316Z",
+      "contextPath": "components/comp-ed076ad50713/context.md"
+    },
+    "↑ +0.3%": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T17:29:53.223Z",
+      "contextPath": "components/comp-22541d0162f7/context.md"
+    },
+    "get-started-btn": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T17:36:53.177Z",
+      "contextPath": "components/comp-ec105fb29f91/context.md"
+    },
+    "welcome-card": {
+      "hasSpec": true,
+      "lastUpdated": "2026-01-21T17:39:27.994Z",
+      "contextPath": "components/comp-f3014474a9c2/context.md"
     }
   }
 }

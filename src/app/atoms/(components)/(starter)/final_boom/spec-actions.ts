@@ -518,3 +518,62 @@ Please implement this component following the specification and ensuring it work
 
   return prompt;
 }
+
+// Component context info for highlighting
+export interface ComponentContextInfo {
+  componentId: string;
+  elementKey?: string;
+  hasContext: boolean;
+  contextPath: string;
+}
+
+// Get all components with context files for a page (used for highlighting)
+export async function getComponentsWithContext(pageName: string): Promise<ComponentContextInfo[]> {
+  const result: ComponentContextInfo[] = [];
+
+  try {
+    const refs = await readComponentRefs(pageName);
+
+    for (const [componentId, ref] of Object.entries(refs.components)) {
+      const contextPath = path.join(OUTPUTS_ROOT, pageName, ref.contextPath);
+      const hasContext = existsSync(contextPath);
+
+      result.push({
+        componentId,
+        elementKey: ref.selectors.elementKey,
+        hasContext,
+        contextPath: ref.contextPath,
+      });
+    }
+  } catch (error) {
+    console.error("[spec-actions] Error getting components with context:", error);
+  }
+
+  return result;
+}
+
+// Get a map of element keys to their context status (for quick lookup in client)
+export async function getElementContextMap(pageName: string): Promise<Record<string, boolean>> {
+  const map: Record<string, boolean> = {};
+
+  try {
+    const refs = await readComponentRefs(pageName);
+
+    for (const ref of Object.values(refs.components)) {
+      if (ref.selectors.elementKey) {
+        const contextPath = path.join(OUTPUTS_ROOT, pageName, ref.contextPath);
+        map[ref.selectors.elementKey] = existsSync(contextPath);
+      }
+      // Also add by textContent for matching (truncated key)
+      if (ref.selectors.textContent) {
+        const contextPath = path.join(OUTPUTS_ROOT, pageName, ref.contextPath);
+        const key = ref.selectors.textContent.slice(0, 20);
+        map[key] = existsSync(contextPath);
+      }
+    }
+  } catch (error) {
+    console.error("[spec-actions] Error getting element context map:", error);
+  }
+
+  return map;
+}

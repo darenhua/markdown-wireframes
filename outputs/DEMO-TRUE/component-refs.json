@@ -304,6 +304,240 @@
       "contextPath": "components/comp-f2701292d66f/context.md",
       "createdAt": "2026-01-20T20:10:43.045Z",
       "lastUpdated": "2026-01-20T20:10:43.045Z"
+    },
+    "comp-ed9ab1d502b2": {
+      "id": "comp-ed9ab1d502b2",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "text-sm font-medium",
+        "textContent": "Key Insights",
+        "elementKey": "insights-card"
+      },
+      "contextPath": "components/comp-ed9ab1d502b2/context.md",
+      "createdAt": "2026-01-21T06:38:09.412Z",
+      "lastUpdated": "2026-01-21T06:38:09.412Z"
+    },
+    "comp-fff30db61385": {
+      "id": "comp-fff30db61385",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "ring-foreground/10 bg-card text-card-foreground gap-4 overflow-hidden rounded-lg py-4 text-xs/relaxed ring-1 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg group/card flex flex-col",
+        "textContent": "ProfileUJohn Doe"
+      },
+      "contextPath": "components/comp-fff30db61385/context.md",
+      "createdAt": "2026-01-21T06:43:09.127Z",
+      "lastUpdated": "2026-01-21T06:43:09.127Z"
+    },
+    "comp-0a09d0195e5a": {
+      "id": "comp-0a09d0195e5a",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "gap-1 rounded-t-lg px-4 group-data-[size=sm]/card:px-3 [.border-b]:pb-4 group-data-[size=sm]/card:[.border-b]:pb-3 group/card-header @container/card-header grid auto-rows-min items-start has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto]",
+        "textContent": "Engagement",
+        "elementKey": "engagement-card"
+      },
+      "contextPath": "components/comp-0a09d0195e5a/context.md",
+      "createdAt": "2026-01-21T06:44:05.930Z",
+      "lastUpdated": "2026-01-21T06:44:05.930Z"
+    },
+    "comp-87db087e6876": {
+      "id": "comp-87db087e6876",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "text-sm font-medium",
+        "textContent": "Recent Posts",
+        "elementKey": "feed-card"
+      },
+      "contextPath": "components/comp-87db087e6876/context.md",
+      "createdAt": "2026-01-21T06:44:14.566Z",
+      "lastUpdated": "2026-01-21T06:44:14.566Z"
+    },
+    "comp-53002c937e04": {
+      "id": "comp-53002c937e04",
+      "selectors": {
+        "tagName": "H2",
+        "className": "scroll-m-20 text-3xl font-semibold tracking-tight",
+        "textContent": "John Doe",
+        "elementKey": "username"
+      },
+      "contextPath": "components/comp-53002c937e04/context.md",
+      "createdAt": "2026-01-21T06:44:17.702Z",
+      "lastUpdated": "2026-01-21T06:44:17.702Z"
+    },
+    "comp-6a0489089b0c": {
+      "id": "comp-6a0489089b0c",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "text-sm font-medium",
+        "textContent": "Profile",
+        "elementKey": "profile-card"
+      },
+      "contextPath": "components/comp-6a0489089b0c/context.md",
+      "createdAt": "2026-01-21T06:44:20.153Z",
+      "lastUpdated": "2026-01-21T06:44:20.153Z"
+    },
+    "comp-4e4fb5ea5200": {
+      "id": "comp-4e4fb5ea5200",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "space-y-1",
+        "textContent": "Comments5.2k↑ +8%"
+      },
+      "contextPath": "components/comp-4e4fb5ea5200/context.md",
+      "createdAt": "2026-01-21T06:54:23.446Z",
+      "lastUpdated": "2026-01-21T06:54:23.446Z"
+    },
+    "comp-92c33aedce39": {
+      "id": "comp-92c33aedce39",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "text-sm font-medium",
+        "textContent": "Notifications",
+        "elementKey": "notifications-card"
+      },
+      "contextPath": "components/comp-92c33aedce39/context.md",
+      "createdAt": "2026-01-21T06:54:34.420Z",
+      "lastUpdated": "2026-01-21T06:54:34.420Z"
+    },
+    "comp-c6460389d69d": {
+      "id": "comp-c6460389d69d",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "ring-foreground/10 bg-card text-card-foreground gap-4 overflow-hidden rounded-lg py-4 text-xs/relaxed ring-1 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg group/card flex flex-col",
+        "textContent": "Key InsightsFollowers10.5k↑ +12%Likes23.1k↑ +5%Comments5.2k↑ +8%"
+      },
+      "contextPath": "components/comp-c6460389d69d/context.md",
+      "createdAt": "2026-01-21T06:54:49.127Z",
+      "lastUpdated": "2026-01-21T06:54:49.127Z"
+    },
+    "comp-6c2c3ad90615": {
+      "id": "comp-6c2c3ad90615",
+      "selectors": {
+        "tagName": "BUTTON",
+        "className": "focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-md border bg-clip-padding font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none group/button select-none border-border dark:bg-input/30 hover:bg-input/50 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground h-7 gap-1 px-2 text-xs/relaxed has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        "textContent": "Settings",
+        "elementKey": "settings-btn"
+      },
+      "contextPath": "components/comp-6c2c3ad90615/context.md",
+      "createdAt": "2026-01-21T06:54:54.842Z",
+      "lastUpdated": "2026-01-21T06:54:54.842Z"
+    },
+    "comp-be4a562f89f2": {
+      "id": "comp-be4a562f89f2",
+      "selectors": {
+        "tagName": "P",
+        "className": "text-sm font-medium text-muted-foreground",
+        "textContent": "Comments",
+        "elementKey": "comments-metric"
+      },
+      "contextPath": "components/comp-be4a562f89f2/context.md",
+      "createdAt": "2026-01-21T07:02:14.941Z",
+      "lastUpdated": "2026-01-21T07:02:14.941Z"
+    },
+    "comp-eff4d79b6883": {
+      "id": "comp-eff4d79b6883",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "ring-foreground/10 bg-card text-card-foreground gap-4 overflow-hidden rounded-lg py-4 text-xs/relaxed ring-1 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 *:[img:first-child]:rounded-t-lg *:[img:last-child]:rounded-b-lg group/card flex flex-col",
+        "textContent": "Recent PostsPost 1: Image of sunsetPost 2: Announcement of new productPost 3: Question about favorite features"
+      },
+      "contextPath": "components/comp-eff4d79b6883/context.md",
+      "createdAt": "2026-01-21T07:07:01.969Z",
+      "lastUpdated": "2026-01-21T07:07:01.969Z"
+    },
+    "comp-279dcb049768": {
+      "id": "comp-279dcb049768",
+      "selectors": {
+        "tagName": "TEXTAREA",
+        "className": "border-input bg-input/20 dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 resize-none rounded-md border px-2 py-2 text-sm transition-colors focus-visible:ring-[2px] aria-invalid:ring-[2px] md:text-xs/relaxed placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "textContent": "",
+        "elementKey": "contact-form-container"
+      },
+      "contextPath": "components/comp-279dcb049768/context.md",
+      "createdAt": "2026-01-21T07:09:02.157Z",
+      "lastUpdated": "2026-01-21T07:09:02.157Z"
+    },
+    "comp-3934da1a19bd": {
+      "id": "comp-3934da1a19bd",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "flex flex-col gap-4 items-stretch",
+        "textContent": "Full NameEmail AddressMessageSend Message"
+      },
+      "contextPath": "components/comp-3934da1a19bd/context.md",
+      "createdAt": "2026-01-21T07:09:15.142Z",
+      "lastUpdated": "2026-01-21T07:09:15.142Z"
+    },
+    "comp-abdcc5eabd1d": {
+      "id": "comp-abdcc5eabd1d",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "px-4 group-data-[size=sm]/card:px-3",
+        "textContent": "$29/monthWhat's included:Unlimited projectsPriority supportAdvanced analyticsCustom integrationsTeam collaboration toolsSubscribe NowLearn More",
+        "elementKey": "pricing-card"
+      },
+      "contextPath": "components/comp-abdcc5eabd1d/context.md",
+      "createdAt": "2026-01-21T15:26:14.430Z",
+      "lastUpdated": "2026-01-21T15:26:14.430Z"
+    },
+    "comp-6da3c365af1a": {
+      "id": "comp-6da3c365af1a",
+      "selectors": {
+        "tagName": "BUTTON",
+        "className": "focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-md border border-transparent bg-clip-padding font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none group/button select-none bg-primary text-primary-foreground hover:bg-primary/80 h-8 gap-1 px-2.5 text-xs/relaxed has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-4",
+        "textContent": "Subscribe Now",
+        "elementKey": "subscribe-button"
+      },
+      "contextPath": "components/comp-6da3c365af1a/context.md",
+      "createdAt": "2026-01-21T15:26:24.240Z",
+      "lastUpdated": "2026-01-21T15:26:24.240Z"
+    },
+    "comp-ed076ad50713": {
+      "id": "comp-ed076ad50713",
+      "selectors": {
+        "tagName": "H2",
+        "className": "scroll-m-20 text-3xl font-semibold tracking-tight",
+        "textContent": "$29/month",
+        "elementKey": "price-text"
+      },
+      "contextPath": "components/comp-ed076ad50713/context.md",
+      "createdAt": "2026-01-21T15:27:00.310Z",
+      "lastUpdated": "2026-01-21T15:27:00.310Z"
+    },
+    "comp-22541d0162f7": {
+      "id": "comp-22541d0162f7",
+      "selectors": {
+        "tagName": "P",
+        "className": "text-xs font-medium text-green-600 dark:text-green-400",
+        "textContent": "↑ +0.3%"
+      },
+      "contextPath": "components/comp-22541d0162f7/context.md",
+      "createdAt": "2026-01-21T17:29:53.218Z",
+      "lastUpdated": "2026-01-21T17:29:53.218Z"
+    },
+    "comp-ec105fb29f91": {
+      "id": "comp-ec105fb29f91",
+      "selectors": {
+        "tagName": "BUTTON",
+        "className": "focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-md border border-transparent bg-clip-padding font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none group/button select-none bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground h-8 gap-1 px-2.5 text-xs/relaxed has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-4",
+        "textContent": "Learn More",
+        "elementKey": "get-started-btn"
+      },
+      "contextPath": "components/comp-ec105fb29f91/context.md",
+      "createdAt": "2026-01-21T17:36:53.174Z",
+      "lastUpdated": "2026-01-21T17:36:53.174Z"
+    },
+    "comp-f3014474a9c2": {
+      "id": "comp-f3014474a9c2",
+      "selectors": {
+        "tagName": "DIV",
+        "className": "text-sm font-medium",
+        "textContent": "Welcome!",
+        "elementKey": "welcome-card"
+      },
+      "contextPath": "components/comp-f3014474a9c2/context.md",
+      "createdAt": "2026-01-21T17:39:27.986Z",
+      "lastUpdated": "2026-01-21T17:39:27.986Z"
     }
   }
 }

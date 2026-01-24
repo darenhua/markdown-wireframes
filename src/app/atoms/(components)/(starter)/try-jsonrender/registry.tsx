@@ -61,7 +61,7 @@ export const registry: ComponentRegistry = {
   // LAYOUT
   // ─────────────────────────────────────────────────────────────
   Card: ({ element, children }) => (
-    <Card>
+    <Card data-element-key={element.key}>
       {(element.props.title || element.props.description) && (
         <CardHeader>
           {element.props.title && <CardTitle>{element.props.title}</CardTitle>}
@@ -89,6 +89,7 @@ export const registry: ComponentRegistry = {
 
     return (
       <div
+        data-element-key={element.key}
         className={cn(
           "flex",
           direction === "horizontal" ? "flex-row" : "flex-col",
@@ -114,7 +115,7 @@ export const registry: ComponentRegistry = {
       6: "grid-cols-6",
     }[columns];
 
-    return <div className={cn("grid", colClass, gapClass)}>{children}</div>;
+    return <div data-element-key={element.key} className={cn("grid", colClass, gapClass)}>{children}</div>;
   },
 
   Box: ({ element, children }) => {
@@ -156,6 +157,7 @@ export const registry: ComponentRegistry = {
 
     return (
       <div
+        data-element-key={element.key}
         className={cn(
           paddingClass,
           roundedClass,
@@ -182,7 +184,7 @@ export const registry: ComponentRegistry = {
     }[level];
 
     const Tag = `h${level}` as keyof JSX.IntrinsicElements;
-    return <Tag className={className}>{element.props.text}</Tag>;
+    return <Tag data-element-key={element.key} className={className}>{element.props.text}</Tag>;
   },
 
   Text: ({ element }) => {
@@ -203,14 +205,14 @@ export const registry: ComponentRegistry = {
     }[size];
 
     return (
-      <p className={cn("leading-7", sizeClass, variantClass)}>
+      <p data-element-key={element.key} className={cn("leading-7", sizeClass, variantClass)}>
         {element.props.text}
       </p>
     );
   },
 
   Label: ({ element }) => (
-    <Label htmlFor={element.props.htmlFor ?? undefined}>
+    <Label data-element-key={element.key} htmlFor={element.props.htmlFor ?? undefined}>
       {element.props.text}
     </Label>
   ),
@@ -255,7 +257,7 @@ export const registry: ComponentRegistry = {
     const IconComponent = iconMap[name as keyof typeof iconMap];
     if (!IconComponent) return null;
 
-    return <IconComponent className={cn(sizeClass, "text-foreground")} />;
+    return <IconComponent data-element-key={element.key} className={cn(sizeClass, "text-foreground")} />;
   },
 
   Metric: ({ element }) => {
@@ -267,7 +269,7 @@ export const registry: ComponentRegistry = {
     }[trend ?? "neutral"];
 
     return (
-      <div className="space-y-1">
+      <div data-element-key={element.key} className="space-y-1">
         <p className="text-sm font-medium text-muted-foreground">
           {element.props.label}
         </p>
@@ -285,11 +287,11 @@ export const registry: ComponentRegistry = {
 
   Badge: ({ element }) => {
     const variant = element.props.variant ?? "default";
-    return <Badge variant={variant}>{element.props.text}</Badge>;
+    return <Badge data-element-key={element.key} variant={variant}>{element.props.text}</Badge>;
   },
 
   Avatar: ({ element }) => (
-    <Avatar>
+    <Avatar data-element-key={element.key}>
       {element.props.src && (
         <AvatarImage src={element.props.src} alt={element.props.alt ?? ""} />
       )}
@@ -303,6 +305,7 @@ export const registry: ComponentRegistry = {
 
     return (
       <Tag
+        data-element-key={element.key}
         className={cn(
           "my-6 ml-6 [&>li]:mt-2",
           ordered ? "list-decimal" : "list-disc"
@@ -322,14 +325,14 @@ export const registry: ComponentRegistry = {
     const variant = element.props.variant ?? "default";
     const size = element.props.size ?? "default";
     return (
-      <Button variant={variant} size={size}>
+      <Button data-element-key={element.key} variant={variant} size={size}>
         {element.props.label}
       </Button>
     );
   },
 
   Input: ({ element }) => (
-    <div className="grid w-full gap-1.5">
+    <div data-element-key={element.key} className="grid w-full gap-1.5">
       {element.props.label && <Label>{element.props.label}</Label>}
       <Input
         type={element.props.type ?? "text"}
@@ -339,7 +342,7 @@ export const registry: ComponentRegistry = {
   ),
 
   Textarea: ({ element }) => (
-    <div className="grid w-full gap-1.5">
+    <div data-element-key={element.key} className="grid w-full gap-1.5">
       {element.props.label && <Label>{element.props.label}</Label>}
       <Textarea
         placeholder={element.props.placeholder ?? ""}
@@ -349,7 +352,7 @@ export const registry: ComponentRegistry = {
   ),
 
   Checkbox: ({ element }) => (
-    <div className="flex items-center space-x-2">
+    <div data-element-key={element.key} className="flex items-center space-x-2">
       <Checkbox
         id={`checkbox-${element.key}`}
         defaultChecked={element.props.checked ?? false}
@@ -362,17 +365,17 @@ export const registry: ComponentRegistry = {
   // TABS
   // ─────────────────────────────────────────────────────────────
   Tabs: ({ element, children }) => (
-    <Tabs defaultValue={element.props.defaultValue}>{children}</Tabs>
+    <Tabs data-element-key={element.key} defaultValue={element.props.defaultValue}>{children}</Tabs>
   ),
 
-  TabsList: ({ children }) => <TabsList>{children}</TabsList>,
+  TabsList: ({ element, children }) => <TabsList data-element-key={element.key}>{children}</TabsList>,
 
   TabsTrigger: ({ element }) => (
-    <TabsTrigger value={element.props.value}>{element.props.label}</TabsTrigger>
+    <TabsTrigger data-element-key={element.key} value={element.props.value}>{element.props.label}</TabsTrigger>
   ),
 
   TabsContent: ({ element, children }) => (
-    <TabsContent value={element.props.value}>{children}</TabsContent>
+    <TabsContent data-element-key={element.key} value={element.props.value}>{children}</TabsContent>
   ),
 
   // ─────────────────────────────────────────────────────────────
@@ -381,7 +384,7 @@ export const registry: ComponentRegistry = {
   Alert: ({ element }) => {
     const variant = element.props.variant ?? "default";
     return (
-      <Alert variant={variant}>
+      <Alert data-element-key={element.key} variant={variant}>
         <AlertCircle className="h-4 w-4" />
         {element.props.title && <AlertTitle>{element.props.title}</AlertTitle>}
         <AlertDescription>{element.props.message}</AlertDescription>
@@ -393,7 +396,7 @@ export const registry: ComponentRegistry = {
   // UTILITY
   // ─────────────────────────────────────────────────────────────
   Separator: ({ element }) => (
-    <Separator orientation={element.props.orientation ?? "horizontal"} />
+    <Separator data-element-key={element.key} orientation={element.props.orientation ?? "horizontal"} />
   ),
 
   Empty: ({ element }) => {
@@ -406,7 +409,7 @@ export const registry: ComponentRegistry = {
     }[iconType];
 
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div data-element-key={element.key} className="flex flex-col items-center justify-center py-12 text-center">
         <div className="mb-4 rounded-full bg-muted p-3">
           <IconComponent className="h-6 w-6 text-muted-foreground" />
         </div>

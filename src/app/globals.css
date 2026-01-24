@@ -199,3 +199,9 @@
     @apply font-sans;
   }
 }
+
+/* Component context highlighting - baby blue dotted border for elements with context files */
+.context-highlight-container [data-has-context="true"] {
+  outline: 2px dotted #89CFF0 !important;
+  outline-offset: 2px;
+}

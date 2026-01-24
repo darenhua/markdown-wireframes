@@ -24,6 +24,7 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   tokens?: TokenUsage;
+  previousTree?: UITree; // Store tree state before this message's changes
 };
 
 type UITree = {
@@ -71,6 +72,74 @@ function formatStreamingOutput(
   if (merged) lines.push(`\n[Merged] ${merged.slice(0, 100)}...`);
 
   return lines.join("\n");
+}
+
+// Compute diff between two JSON trees, returning lines with change markers
+function computeTreeDiff(
+  oldTree: UITree | null,
+  newTree: UITree
+): { lines: Array<{ lineNum: number; content: string; type: "added" | "removed" | "unchanged" }>; hasChanges: boolean } {
+  const oldJson = oldTree ? JSON.stringify(oldTree, null, 2) : "";
+  const newJson = JSON.stringify(newTree, null, 2);
+
+  const oldLines = oldJson ? oldJson.split("\n") : [];
+  const newLines = newJson.split("\n");
+
+  // Simple line-by-line diff
+  const result: Array<{ lineNum: number; content: string; type: "added" | "removed" | "unchanged" }> = [];
+  let hasChanges = false;
+
+  // Use a simple longest common subsequence approach for small diffs
+  const maxLen = Math.max(oldLines.length, newLines.length);
+  let oldIdx = 0;
+  let newIdx = 0;
+  let lineNum = 1;
+
+  while (oldIdx < oldLines.length || newIdx < newLines.length) {
+    const oldLine = oldLines[oldIdx];
+    const newLine = newLines[newIdx];
+
+    if (oldLine === newLine) {
+      result.push({ lineNum: lineNum++, content: newLine, type: "unchanged" });
+      oldIdx++;
+      newIdx++;
+    } else if (oldIdx >= oldLines.length) {
+      // Only new lines left
+      result.push({ lineNum: lineNum++, content: newLine, type: "added" });
+      hasChanges = true;
+      newIdx++;
+    } else if (newIdx >= newLines.length) {
+      // Only old lines left (removed)
+      result.push({ lineNum: lineNum++, content: oldLine, type: "removed" });
+      hasChanges = true;
+      oldIdx++;
+    } else {
+      // Lines differ - check if old line exists later in new, or new line exists later in old
+      const oldInNew = newLines.slice(newIdx).indexOf(oldLine);
+      const newInOld = oldLines.slice(oldIdx).indexOf(newLine);
+
+      if (oldInNew === -1 && newInOld === -1) {
+        // Neither found - treat as replacement
+        result.push({ lineNum: lineNum++, content: oldLine, type: "removed" });
+        result.push({ lineNum: lineNum++, content: newLine, type: "added" });
+        hasChanges = true;
+        oldIdx++;
+        newIdx++;
+      } else if (oldInNew !== -1 && (newInOld === -1 || oldInNew <= newInOld)) {
+        // Old line found later in new - new lines were added
+        result.push({ lineNum: lineNum++, content: newLine, type: "added" });
+        hasChanges = true;
+        newIdx++;
+      } else {
+        // New line found later in old - old lines were removed
+        result.push({ lineNum: lineNum++, content: oldLine, type: "removed" });
+        hasChanges = true;
+        oldIdx++;
+      }
+    }
+  }
+
+  return { lines: result, hasChanges };
 }
 
 function applyPatches(tree: UITree, jsonl: string): UITree {
@@ -159,6 +228,7 @@ export function ChatSidebar({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [generationMode, setGenerationMode] = useState<GenerationMode>("standard");
   const [previewSource, setPreviewSource] = useState<PreviewSource>("merged");
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const [ensembleTrees, setEnsembleTrees] = useState<{
     merged: UITree;
     A: UITree;
@@ -208,9 +278,24 @@ export function ChatSidebar({
     onEnsembleMetadataUpdate?.(ensembleMetadata);
   }, [ensembleMetadata, onEnsembleMetadataUpdate]);
 
+  const toggleMessageExpanded = useCallback((messageId: string) => {
+    setExpandedMessages((prev) => {
+      const next = new Set(prev);
+      if (next.has(messageId)) {
+        next.delete(messageId);
+      } else {
+        next.add(messageId);
+      }
+      return next;
+    });
+  }, []);
+
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isLoading) return;
+
+      // Capture the current tree state before changes
+      const treeBeforeChanges = { ...tree, elements: { ...tree.elements } };
 
       const userMessage: Message = {
         id: `user-${Date.now()}`,
@@ -258,10 +343,10 @@ export function ChatSidebar({
           let buffer = "";
           const assistantId = `assistant-${Date.now()}`;
 
-          // Add streaming placeholder message
+          // Add streaming placeholder message with previous tree state
           setMessages((prev) => [
             ...prev,
-            { id: assistantId, role: "assistant", content: "" },
+            { id: assistantId, role: "assistant", content: "", previousTree: treeBeforeChanges },
           ]);
 
           // Track outputs as they arrive
@@ -430,7 +515,7 @@ export function ChatSidebar({
 
           setMessages((prev) => [
             ...prev,
-            { id: assistantId, role: "assistant", content: "" },
+            { id: assistantId, role: "assistant", content: "", previousTree: treeBeforeChanges },
           ]);
 
           while (true) {
@@ -754,37 +839,51 @@ export function ChatSidebar({
                             <p className="whitespace-pre-wrap">{displayText}</p>
                           )}
                         </div>
-                        {isFirstAssistant && json && !isCurrentlyStreaming && (
-                          <div className="space-y-2">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Generated JSON
-                            </p>
-                            <pre className="overflow-auto rounded-lg bg-muted/50 p-3 text-[10px] text-muted-foreground max-h-[150px]">
-                              {JSON.stringify(tree, null, 2)}
-                            </pre>
-                          </div>
-                        )}
                         {message.role === "assistant" && message.tokens && (
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
+                          <div className="space-y-2">
+                            {/* Clickable token count to expand/collapse JSON view */}
+                            <button
+                              type="button"
+                              onClick={() => toggleMessageExpanded(message.id)}
+                              className="group flex items-center gap-2 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <svg
+                                  className="h-3 w-3"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={1.5}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+                                  />
+                                </svg>
+                                <span>{(message.tokens.totalTokens ?? 0).toLocaleString()} tokens</span>
+                              </div>
+                              <div className="flex items-center gap-0.5 text-amber-500/70">
+                                <svg
+                                  className="h-3 w-3"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"
+                                  />
+                                </svg>
+                                <span>+{(message.tokens.totalTokens ?? 0).toLocaleString()} this turn</span>
+                              </div>
                               <svg
-                                className="h-3 w-3"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={1.5}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
-                                />
-                              </svg>
-                              <span>{(message.tokens.totalTokens ?? 0).toLocaleString()} tokens</span>
-                            </div>
-                            <div className="flex items-center gap-0.5 text-xs text-amber-500/70 ml-4">
-                              <svg
-                                className="h-3 w-3"
+                                className={cn(
+                                  "h-3 w-3 transition-transform duration-200",
+                                  expandedMessages.has(message.id) ? "rotate-180" : ""
+                                )}
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -793,11 +892,98 @@ export function ChatSidebar({
                                 <path
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
-                                  d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"
+                                  d="M19.5 8.25l-7.5 7.5-7.5-7.5"
                                 />
                               </svg>
-                              <span>+{(message.tokens.totalTokens ?? 0).toLocaleString()} this turn</span>
-                            </div>
+                              <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
+                                {expandedMessages.has(message.id) ? "hide" : "show"} json
+                              </span>
+                            </button>
+
+                            {/* Expandable JSON/Diff view */}
+                            {expandedMessages.has(message.id) && !isCurrentlyStreaming && (
+                              <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-200">
+                                {(() => {
+                                  const hasPreviousTree = message.previousTree && message.previousTree.root;
+
+                                  if (!hasPreviousTree && isFirstAssistant) {
+                                    // First generation - show full JSON tree
+                                    return (
+                                      <>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                          Generated JSON Tree
+                                        </p>
+                                        <pre className="overflow-auto rounded-lg bg-muted/50 p-3 text-[10px] text-muted-foreground max-h-[250px] font-mono">
+                                          {JSON.stringify(tree, null, 2)}
+                                        </pre>
+                                      </>
+                                    );
+                                  } else if (hasPreviousTree) {
+                                    // Subsequent modification - show diff
+                                    const { lines, hasChanges } = computeTreeDiff(message.previousTree!, tree);
+
+                                    if (!hasChanges) {
+                                      return (
+                                        <p className="text-[10px] text-muted-foreground italic">
+                                          No structural changes detected
+                                        </p>
+                                      );
+                                    }
+
+                                    return (
+                                      <>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                          JSON Diff
+                                        </p>
+                                        <div className="overflow-auto rounded-lg bg-muted/50 max-h-[250px] font-mono text-[10px]">
+                                          {lines.map((line, idx) => (
+                                            <div
+                                              key={idx}
+                                              className={cn(
+                                                "flex",
+                                                line.type === "added" && "bg-emerald-500/10",
+                                                line.type === "removed" && "bg-red-500/10"
+                                              )}
+                                            >
+                                              <span className="w-8 shrink-0 text-right pr-2 text-muted-foreground/40 select-none border-r border-border/30">
+                                                {line.lineNum}
+                                              </span>
+                                              <span className={cn(
+                                                "w-4 shrink-0 text-center select-none",
+                                                line.type === "added" && "text-emerald-500",
+                                                line.type === "removed" && "text-red-500"
+                                              )}>
+                                                {line.type === "added" ? "+" : line.type === "removed" ? "-" : " "}
+                                              </span>
+                                              <span className={cn(
+                                                "flex-1 px-2 whitespace-pre",
+                                                line.type === "added" && "text-emerald-600",
+                                                line.type === "removed" && "text-red-600 line-through opacity-70",
+                                                line.type === "unchanged" && "text-muted-foreground"
+                                              )}>
+                                                {line.content}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </>
+                                    );
+                                  } else {
+                                    // Fallback - show current tree
+                                    return (
+                                      <>
+                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                          Current JSON Tree
+                                        </p>
+                                        <pre className="overflow-auto rounded-lg bg-muted/50 p-3 text-[10px] text-muted-foreground max-h-[250px] font-mono">
+                                          {JSON.stringify(tree, null, 2)}
+                                        </pre>
+                                      </>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

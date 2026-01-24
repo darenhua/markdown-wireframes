@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import { useAgentStream, type ChatMessage, type ToolCall } from "../useAgentStream";
+import { useSpecChat } from "../useSpecChat";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,15 +11,11 @@ import {
   FileText,
   RefreshCw,
   ChevronLeft,
-  Wrench,
-  CheckCircle,
   Loader2,
   Bot,
   User,
-  XCircle,
 } from "lucide-react";
-import { readElementContext, type SelectorInfo } from "../spec-actions";
-import { readPageTsx } from "../actions";
+import { readElementContext } from "../spec-actions";
 
 interface UITree {
   root: string;
@@ -43,99 +39,10 @@ interface NotebookPanelProps {
   onElementKeyChange?: (key: string) => void;
 }
 
-// Tool call display component
-function ToolCallDisplay({ tool }: { tool: ToolCall }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="border rounded p-1.5 bg-muted/30 text-[10px]">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 w-full text-left"
-      >
-        <Wrench className="h-2.5 w-2.5 text-blue-500" />
-        <span className="font-medium truncate">{tool.name}</span>
-        {tool.result !== undefined ? (
-          <CheckCircle className="h-2.5 w-2.5 text-green-500 ml-auto flex-shrink-0" />
-        ) : (
-          <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground ml-auto flex-shrink-0" />
-        )}
-      </button>
-      {expanded && (
-        <div className="mt-1.5 space-y-1">
-          <div>
-            <span className="text-muted-foreground">Input:</span>
-            <pre className="mt-0.5 p-1 bg-background rounded text-[8px] overflow-x-auto">
-              {JSON.stringify(tool.input, null, 2)}
-            </pre>
-          </div>
-          {tool.result && (
-            <div>
-              <span className="text-muted-foreground">Result:</span>
-              <pre className="mt-0.5 p-1 bg-background rounded text-[8px] overflow-x-auto max-h-16 overflow-y-auto">
-                {tool.result.slice(0, 200)}
-                {tool.result.length > 200 ? "..." : ""}
-              </pre>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Message display component
-function MessageDisplay({ message }: { message: ChatMessage }) {
-  const isUser = message.role === "user";
-  const isSystem = message.role === "system";
-
-  // Hide system messages that start with [SYSTEM:
-  if (isUser && message.content.startsWith("[SYSTEM:")) {
-    return null;
-  }
-
-  return (
-    <div className={cn("flex gap-1.5", isUser ? "flex-row-reverse" : "flex-row")}>
-      <div
-        className={cn(
-          "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center",
-          isUser ? "bg-primary text-primary-foreground" : "bg-muted",
-          isSystem && "bg-red-100"
-        )}
-      >
-        {isUser ? (
-          <User className="h-2.5 w-2.5" />
-        ) : isSystem ? (
-          <XCircle className="h-2.5 w-2.5 text-red-500" />
-        ) : (
-          <Bot className="h-2.5 w-2.5" />
-        )}
-      </div>
-      <div className={cn("flex-1 space-y-1", isUser ? "text-right" : "text-left")}>
-        {message.content && (
-          <div
-            className={cn(
-              "inline-block rounded-lg px-2 py-1 text-[11px] max-w-[90%]",
-              isUser
-                ? "bg-primary text-primary-foreground"
-                : isSystem
-                ? "bg-red-50 text-red-800 border border-red-200"
-                : "bg-muted"
-            )}
-          >
-            <p className="whitespace-pre-wrap">{message.content}</p>
-          </div>
-        )}
-        {message.toolCalls && message.toolCalls.length > 0 && (
-          <div className="space-y-1 max-w-[90%]">
-            {message.toolCalls.map((tool, idx) => (
-              <ToolCallDisplay key={idx} tool={tool} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
 }
 
 export function NotebookPanel({
@@ -147,15 +54,13 @@ export function NotebookPanel({
   onElementKeyChange,
 }: NotebookPanelProps) {
   const [contextContent, setContextContent] = useState(initialContext);
-  const [pageTsxContent, setPageTsxContent] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [selectedInternalKey, setSelectedInternalKey] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasAutoStarted = useRef(false);
   const prevElementKey = useRef<string | null>(null);
-  const contextLoadedRef = useRef(false);
-  // Force re-render when context loads
-  const [, forceUpdate] = useState({});
+  const messageIdCounter = useRef(0);
 
   // Use external elementKey if provided, otherwise use internal selection
   const elementKey = externalElementKey || selectedInternalKey;
@@ -172,6 +77,32 @@ export function NotebookPanel({
       }))
     : [];
 
+  const generateId = () => {
+    messageIdCounter.current += 1;
+    return `msg-${Date.now()}-${messageIdCounter.current}`;
+  };
+
+  // Spec chat hook - now with separate question and markdown streams
+  const { sendMessage, isStreaming, streamedQuestion, streamedMarkdown, clear } = useSpecChat({
+    onComplete: (question, markdown) => {
+      // Update context with the returned markdown
+      setContextContent(markdown);
+      onContextUpdate(markdown);
+
+      // Add assistant message with the question
+      if (question) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: generateId(),
+            role: "assistant",
+            content: question,
+          },
+        ]);
+      }
+    },
+  });
+
   // Handle manual element selection
   const handleElementSelect = (key: string) => {
     setSelectedInternalKey(key);
@@ -182,136 +113,84 @@ export function NotebookPanel({
   const handleBack = () => {
     setSelectedInternalKey(null);
     onElementKeyChange?.("");
+    setMessages([]);
     clear();
     hasAutoStarted.current = false;
   };
 
-  // Build selector info from element
-  const selectors: SelectorInfo | undefined = element
-    ? {
-        elementKey: elementKey || undefined,
-        textContent: (element.props?.label || element.props?.text || element.props?.title) as string | undefined,
-      }
-    : undefined;
-
-  // Fetch context and page.tsx from server
+  // Fetch context from server
   const fetchContext = useCallback(async () => {
     if (!elementKey) return;
-    contextLoadedRef.current = false;
-    const [content, pageContent] = await Promise.all([
-      readElementContext(pageName, elementKey),
-      readPageTsx(pageName),
-    ]);
+    const content = await readElementContext(pageName, elementKey);
     setContextContent(content);
-    setPageTsxContent(pageContent);
-    contextLoadedRef.current = true;
     onContextUpdate(content);
-    forceUpdate({}); // Trigger re-render to check auto-start condition
   }, [pageName, elementKey, onContextUpdate]);
-
-  // Agent stream hook
-  const {
-    messages,
-    isStreaming,
-    error,
-    currentToolCalls,
-    send,
-    cancel,
-    clear,
-  } = useAgentStream({
-    api: "/api/claude-agent",
-    onError: (err) => console.error("Agent error:", err),
-    onComplete: () => {
-      // Refetch context when agent completes
-      fetchContext();
-    },
-    onToolResult: (toolName, result) => {
-      // Refetch context when Write tool completes
-      if (toolName === "Write" || toolName === "Edit") {
-        fetchContext();
-      }
-    },
-  });
 
   // Reset when element changes
   useEffect(() => {
     if (elementKey !== prevElementKey.current) {
       prevElementKey.current = elementKey;
+      setMessages([]);
       clear();
       hasAutoStarted.current = false;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync state when elementKey prop changes
       fetchContext();
     }
   }, [elementKey, clear, fetchContext]);
 
-  // AUTO-START: Send initial greeting when element is selected and no messages
+  // AUTO-START: Send initial message when element is selected
   useEffect(() => {
     if (
       elementKey &&
       element &&
-      contextLoadedRef.current &&
       messages.length === 0 &&
       !hasAutoStarted.current &&
       !isStreaming
     ) {
       hasAutoStarted.current = true;
-      console.log("[NotebookPanel] Auto-start with:", {
-        pageName,
+
+      // Add initial user message
+      const userMessage: ChatMessage = {
+        id: generateId(),
+        role: "user",
+        content: `Let's define the spec for "${elementKey}"`,
+      };
+      setMessages([userMessage]);
+
+      // Send to API
+      sendMessage(userMessage.content, {
+        currentContext: contextContent,
         elementKey,
-        hasTree: !!tree,
-        element,
+        elementType: element.type,
       });
-
-      // Build preloaded context for the system prompt
-      const treeContext = tree ? JSON.stringify(tree, null, 2) : "Not available";
-      const pageContext = pageTsxContent || "Not available";
-      const specContext = contextContent || "No existing spec - this is a new component";
-
-      const systemPrompt = `You are helping the user fill out a component specification for "${elementKey}" (type: ${element.type}).
-The spec file is located at: outputs/${pageName}/components/${elementKey}/context.md
-
-## PRELOADED CONTEXT (do NOT use tools to read these files - they are provided below):
-
-### Current Component Spec (context.md):
-\`\`\`markdown
-${specContext}
-\`\`\`
-
-### Component Tree (tree.json):
-\`\`\`json
-${treeContext}
-\`\`\`
-
-### Page Implementation (page.tsx):
-\`\`\`tsx
-${pageContext}
-\`\`\`
-
-## INSTRUCTIONS:
-- You already have access to all the context above - do NOT call Read tools to fetch tree.json, page.tsx, or context.md
-- Ask the user ONE question at a time to fill in missing sections of the spec
-- Keep responses brief and conversational
-- When the user answers, use the Write tool to update the context.md file with their input
-- Focus on: Overview, Purpose, Features, Interactions, and Edge Cases sections`;
-
-      send(
-        `Let's fill out the spec for the "${elementKey}" component. What would you like to know about it first?`,
-        { pageName, elementKey, systemPrompt }
-      );
     }
-  }, [elementKey, element, messages.length, isStreaming, send, pageName, tree, pageTsxContent, contextContent]);
+  }, [elementKey, element, messages.length, isStreaming, sendMessage, contextContent]);
 
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, currentToolCalls]);
+  }, [messages, streamedQuestion]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isStreaming) return;
-    send(input, { pageName, elementKey: elementKey || undefined });
+    if (!input.trim() || isStreaming || !elementKey || !element) return;
+
+    // Add user message
+    const userMessage: ChatMessage = {
+      id: generateId(),
+      role: "user",
+      content: input.trim(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    // Send to API
+    sendMessage(input.trim(), {
+      currentContext: contextContent,
+      elementKey,
+      elementType: element.type,
+    });
+
     setInput("");
   };
 
@@ -363,9 +242,9 @@ ${pageContext}
   // Main chat view
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Spec Preview (top) */}
-      <div className="shrink-0 border-b">
-        <div className="px-2 py-1 flex items-center justify-between bg-muted/30">
+      {/* Spec Preview (top) - takes 50% */}
+      <div className="flex-1 min-h-0 flex flex-col border-b">
+        <div className="px-2 py-1 flex items-center justify-between bg-muted/30 shrink-0">
           <div className="flex items-center gap-1.5">
             <button onClick={handleBack} className="p-0.5 hover:bg-muted rounded">
               <ChevronLeft className="h-3 w-3 text-muted-foreground" />
@@ -378,12 +257,16 @@ ${pageContext}
             <RefreshCw className="h-2.5 w-2.5 text-muted-foreground" />
           </button>
         </div>
-        <div className="h-[70px] overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-2">
-            {contextContent ? (
+            {/* Show streaming markdown if available, otherwise show saved context */}
+            {isStreaming && streamedMarkdown ? (
+              <pre className="text-[9px] text-foreground whitespace-pre-wrap font-mono leading-tight">
+                {streamedMarkdown}
+              </pre>
+            ) : contextContent ? (
               <pre className="text-[9px] text-muted-foreground whitespace-pre-wrap font-mono leading-tight">
-                {contextContent.slice(0, 400)}
-                {contextContent.length > 400 ? "..." : ""}
+                {contextContent}
               </pre>
             ) : (
               <p className="text-[9px] text-muted-foreground/60 italic">
@@ -394,7 +277,7 @@ ${pageContext}
         </div>
       </div>
 
-      {/* Chat (bottom) */}
+      {/* Chat (bottom) - takes 50% */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Messages area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -404,33 +287,65 @@ ${pageContext}
             </div>
           ) : (
             messages.map((message) => (
-              <MessageDisplay key={message.id} message={message} />
+              <div
+                key={message.id}
+                className={cn(
+                  "flex gap-1.5",
+                  message.role === "user" ? "flex-row-reverse" : "flex-row"
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center",
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  )}
+                >
+                  {message.role === "user" ? (
+                    <User className="h-2.5 w-2.5" />
+                  ) : (
+                    <Bot className="h-2.5 w-2.5" />
+                  )}
+                </div>
+                <div
+                  className={cn(
+                    "flex-1",
+                    message.role === "user" ? "text-right" : "text-left"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "inline-block rounded-lg px-2 py-1 text-[11px] max-w-[90%]",
+                      message.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    )}
+                  >
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                </div>
+              </div>
             ))
           )}
 
-          {/* Current tool calls while streaming */}
-          {isStreaming && currentToolCalls.length > 0 && (
+          {/* Streaming question indicator */}
+          {isStreaming && (
             <div className="flex gap-1.5">
               <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-muted">
                 <Bot className="h-2.5 w-2.5" />
               </div>
-              <div className="flex-1 space-y-1">
-                {currentToolCalls.map((tool, idx) => (
-                  <ToolCallDisplay key={idx} tool={tool} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Loading indicator */}
-          {isStreaming && currentToolCalls.length === 0 && (
-            <div className="flex gap-1.5">
-              <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-muted">
-                <Bot className="h-2.5 w-2.5" />
-              </div>
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-lg">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span className="text-[10px] text-muted-foreground">Thinking...</span>
+              <div className="flex-1 text-left">
+                {streamedQuestion ? (
+                  <div className="inline-block rounded-lg px-2 py-1 text-[11px] max-w-[90%] bg-muted">
+                    <p className="whitespace-pre-wrap">{streamedQuestion}</p>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-muted rounded-lg">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="text-[10px] text-muted-foreground">Thinking...</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -453,25 +368,12 @@ ${pageContext}
               className="min-h-[32px] max-h-[60px] resize-none text-xs"
               rows={1}
             />
-            {isStreaming ? (
-              <Button size="sm" type="button" variant="outline" onClick={cancel} className="h-8 w-8 p-0">
-                <XCircle className="h-3 w-3" />
-              </Button>
-            ) : (
-              <Button size="sm" type="submit" disabled={!input.trim()} className="h-8 w-8 p-0">
-                <Send className="h-3 w-3" />
-              </Button>
-            )}
+            <Button size="sm" type="submit" disabled={!input.trim() || isStreaming} className="h-8 w-8 p-0">
+              <Send className="h-3 w-3" />
+            </Button>
           </div>
         </form>
       </div>
-
-      {/* Error display */}
-      {error && (
-        <div className="absolute bottom-16 left-2 right-2 p-2 bg-red-50 border border-red-200 rounded text-[10px] text-red-800">
-          {error.message}
-        </div>
-      )}
     </div>
   );
 }
